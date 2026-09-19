@@ -1,865 +1,610 @@
 <?php
 //module/import_transactions
-function all_delete($yes=true)
+include_once(__DIR__ . "/import_rows.inc");
+
+/**
+ * Name of the uploaded csv file, for the messages.
+ */
+function import_file_name(): string
 {
-   if ($yes==true)
-   {    
+    return isset($_FILES['imp']['name']) ? $_FILES['imp']['name'] : '';
+}
+
+/**
+ * A posted form value as text; $default when the field was not posted (or was posted as an array).
+ */
+function import_post(string $key, string $default = ''): string
+{
+    if (isset($_POST[$key]) && is_scalar($_POST[$key])) {
+        return $_POST[$key];
+    }
+    return $default;
+}
+
+/**
+ * Result of splitting a tax inclusive amount.
+ */
+final class import_tax_split
+{
+    /** @var float amount without tax */
+    public $net = 0.0;
+    /** @var float amount as entered (rounded) */
+    public $inclusive = 0.0;
+    /** @var float inclusive amount minus tax */
+    public $exclusive = 0.0;
+    /** @var float */
+    public $tax = 0.0;
+    /** @var string gl account that carries the tax of this amount (sales account for credits, purchasing account for debits) */
+    public $taxaccount = '';
+    /** @var string */
+    public $salestaxaccount = '';
+    /** @var string */
+    public $purchasetaxaccount = '';
+}
+
+function all_delete(bool $yes = true): void
+{
+    if ($yes != true) {
+        return;
+    }
     display_notification(_("Function 'all_delete' has been set to true: Relevant records deleted before each test run."));
-    //journal entries table: gl_trans
-    $sql1a = "SELECT * FROM ".TB_PREF."gl_trans";
-    $result1a = db_query($sql1a, _("Could not query gl_trans"));
-    if (db_num_rows($result1a) > 0)
-    {  
-     
-     $sql1b = "DELETE FROM ".TB_PREF."gl_trans";
-     $result1b = db_query($sql1b, _("Could not delete records."));
-     display_notification(_("Deleted ".db_num_rows($result1a)." records from table gl_trans.")); 
-    }  
-      
-    //bank entries table: bank_trans
-    $sql2a = "SELECT * FROM ".TB_PREF."bank_trans WHERE id>-1";  
-    $result2a = db_query($sql2a, _("Could not query bank_trans"));
-    if (db_num_rows($result2a) > 0)
-    {
-    
-    $sql2b = "DELETE FROM ".TB_PREF."bank_trans";
-    $result2b=db_query($sql2b, _("Could not delete records."));
-    display_notification(_("Deleted ".db_num_rows($result2a)." records from table bank_trans.")); 
-    }    
-    
-    //tax entries  table: trans_tax_details
-    $sql3a = "SELECT * FROM ".TB_PREF."trans_tax_details WHERE id>-1";   
-    $result3a = db_query($sql3a, _("Could not query trans_tax_details"));
-    if (db_num_rows($result3a) > 0)
-    {
-    
-    $sql3b = "DELETE FROM ".TB_PREF."trans_tax_details";
-    $result3b=db_query($sql3b, _("Could not delete records."));
-    display_notification(_("Deleted ".db_num_rows($result3a)." records from table trans_tax_details.")); 
+
+    // journal entries, bank entries and tax entries
+    foreach (array('gl_trans', 'bank_trans', 'trans_tax_details') as $table) {
+        import_empty_table($table);
     }
-    
-    //next_reference entries table: sys_types 
-    $sql4 =  "UPDATE ".TB_PREF."sys_types SET next_reference='1'";
-    $result4=db_query($sql4, _("Could not update records."));
-    display_notification(_("Reset column 'next_reference' in table 'sys_types' to '1' for all types.")); 
-    
-    //refs
-    $sql5a = "SELECT * FROM ".TB_PREF."refs";   
-    $result5a=db_query($sql5a, _("Could not query bank_trans"));
-    if (db_num_rows($result5a) > 0)
-    {
-    
-    $sql5b = "DELETE FROM ".TB_PREF."refs";
-    $result5b=db_query($sql5b, _("Could not delete records."));
-    display_notification(_("Deleted ".db_num_rows($result5a)." records from table refs")); 
+
+    //next_reference entries table: sys_types
+    db_query("UPDATE ".TB_PREF."sys_types SET next_reference='1'", _("Could not update records."));
+    display_notification(_("Reset column 'next_reference' in table 'sys_types' to '1' for all types."));
+
+    // references, supplier transactions, customer transactions and the documents behind them
+    foreach (array('refs', 'supp_trans', 'debtor_trans', 'debtor_trans_details', 'comments', 'sales_orders',
+        'sales_order_details', 'stock_moves', 'cust_allocations') as $table) {
+        import_empty_table($table);
     }
-    
-    //suppliers transactions all deleted
-    $sql6a = "SELECT * FROM ".TB_PREF."supp_trans";  
-    $result6a = db_query($sql6a, _("Could not query supp_trans"));
-    if (db_num_rows($result6a) > 0)
-    {
-        
-    $sql6b = "DELETE FROM ".TB_PREF."supp_trans";
-    $result6b=db_query($sql6b, _("Could not delete records."));
-    display_notification(_("Deleted ".db_num_rows($result6a)." records from table supp_trans.")); 
-    }   
-        
-    //customers transactions all deleted
-    $sql7a = "SELECT * FROM ".TB_PREF."debtor_trans";  
-    $result7a = db_query($sql7a, _("Could not query debtor_trans"));
-    if (db_num_rows($result7a) > 0)
-    {
-   
-    $sql7b = "DELETE FROM ".TB_PREF."debtor_trans";
-    $result7b=db_query($sql7b, _("Could not delete records."));
-    display_notification(_("Deleted ".db_num_rows($result7a)." records from table debtor_trans.")); 
-    } 
-    
-    $sql7c = "SELECT * FROM ".TB_PREF."debtor_trans_details";  
-    $result7c = db_query($sql7c, _("Could not query debtor_trans_details"));
-    if (db_num_rows($result7c) > 0)
-    {
-   
-    $sql7d = "DELETE FROM ".TB_PREF."debtor_trans_details";
-    $result7d=db_query($sql7d, _("Could not delete records."));
-    display_notification(_("Deleted ".db_num_rows($result7c)." records from table debtor_trans_details.")); 
-    } 
-    
-    $sql8a = "SELECT * FROM ".TB_PREF."comments";  
-    $result8a = db_query($sql8a, _("Could not query comments."));
-    if (db_num_rows($result8a) > 0)
-    {
-   
-    $sql8b = "DELETE FROM ".TB_PREF."comments";
-    $result8b=db_query($sql8b, _("Could not delete records."));
-    display_notification(_("Deleted ".db_num_rows($result8a)." records from table comments.")); 
-    }  
-    
-    $sql9a = "SELECT * FROM ".TB_PREF."sales_orders";  
-    $result9a = db_query($sql9a, _("Could not query sales_orders."));
-    if (db_num_rows($result9a) > 0)
-    {
-   
-    $sql9b = "DELETE FROM ".TB_PREF."sales_orders";
-    $result9b=db_query($sql9b, _("Could not delete records."));
-    display_notification(_("Deleted ".db_num_rows($result9a)." records from table sales_orders.")); 
-    }  
-    
-    $sql10a = "SELECT * FROM ".TB_PREF."sales_order_details";  
-    $result10a = db_query($sql10a, _("Could not query sales_order_details."));
-    if (db_num_rows($result10a) > 0)
-    {
-   
-    $sql10b = "DELETE FROM ".TB_PREF."sales_order_details";
-    $result10b=db_query($sql10b, _("Could not delete records."));
-    display_notification(_("Deleted ".db_num_rows($result10a)." records from table sales_order_details.")); 
-    } 
-    
-    $sql11a = "SELECT * FROM ".TB_PREF."stock_moves";  
-    $result11a = db_query($sql11a, _("Could not query stock_moves."));
-    if (db_num_rows($result11a) > 0)
-    {
-    $sql11b = "DELETE FROM ".TB_PREF."stock_moves";
-    $result11b=db_query($sql11b, _("Could not delete records."));
-    display_notification(_("Deleted ".db_num_rows($result11a)." records from table stock_moves.")); 
-    }  
-    
-    $sql12a = "SELECT * FROM ".TB_PREF."cust_allocations";  
-    $result12a = db_query($sql12a, _("Could not query cust_allocations."));
-    if (db_num_rows($result12a) > 0)
-    {
-    $sql12b = "DELETE FROM ".TB_PREF."cust_allocations";
-    $result12b=db_query($sql12b, _("Could not delete records."));
-    display_notification(_("Deleted ".db_num_rows($result12a)." records from table cust_allocations.")); 
-    }  
-    
-   } // if yes = true
-     
 }
 
-function bank_inclusive_tax($type, $reference, $date, $bank_account, $bank_account_gl_code, $line, $curEntryId, $code, $dim1, $dim2, $memo, $amt, $taxtype, $person_type_id,$person_id, $BranchNo) // extra inclusive of tax column in csv
+function import_empty_table(string $table): void
 {
-    list($return_amt,$inclusive_amt,$exclusive_amt,$taxamt,$taxaccount,$salestaxaccount,$purchasetaxaccount)=determinetax($taxtype, $amt); 
+    $result = db_query("SELECT * FROM ".TB_PREF.$table, _("Could not query ").$table);
+    $count = db_num_rows($result);
+    if ($count > 0) {
+        db_query("DELETE FROM ".TB_PREF.$table, _("Could not delete records."));
+        display_notification(_("Deleted ").$count._(" records from table ").$table.".");
+    }
+}
+
+/**
+ * The person type FrontAccounting stores for a csv person_type_id.
+ *
+ * The csv convention is 1 = supplier, 2 = customer, blank = none; FrontAccounting 2.4 uses PT_SUPPLIER, PT_CUSTOMER and PT_MISC.
+ */
+function fa_person_type(string $csv_type): int
+{
+    if ($csv_type == 1) {
+        return PT_SUPPLIER;
+    }
+    if ($csv_type == 2) {
+        return PT_CUSTOMER;
+    }
+    return PT_MISC;
+}
+
+function import_is_customer_line(import_line $l): bool
+{
+    return $l->person_type_id == 2 && customer_exist($l->person_id);
+}
+
+function import_is_supplier_line(import_line $l): bool
+{
+    return $l->person_type_id == 1 && supplier_exist($l->person_id);
+}
+
+/**
+ * Adds one general ledger line of an imported bank transaction and puts it on the audit trail.
+ */
+function import_bank_gl(int $type, int $curEntryId, import_line $l, string $account, int $dim1, int $dim2, float $amount): void
+{
+    add_gl_trans($type, $curEntryId, $l->date, $account, $dim1, $dim2, $l->memo, $amount, null, fa_person_type($l->person_type_id), $l->person_id, "", 0);
+    add_audit_trail($type, $curEntryId, $l->date);
+}
+
+// extra inclusive of tax column in csv
+function bank_inclusive_tax(int $type, string $bank_account, string $bank_account_gl_code, int $line, int $curEntryId, import_line $l, int $dim1, int $dim2): void
+{
+    $split = determinetax($l->taxtype, $l->amt);
+    $inclusive_amt = $split->inclusive;
+    $exclusive_amt = $split->exclusive;
+    $taxamt = $split->tax;
+    $file = import_file_name();
+    $code = $l->code_id;
+    $date = $l->date;
+    $memo = $l->memo;
+    $ptype = fa_person_type($l->person_type_id);
     if ($type == ST_BANKDEPOSIT)
-      {
-          add_bank_trans($type, $curEntryId, $bank_account, $reference, $date, $inclusive_amt, fa_person_type($person_type_id), $person_id,$currency="", $err_msg="", $rate=0);
-          display_notification_centered(_("Added to table 'bank_trans': $curEntryId, $date, $reference, $code, $dim1, $dim2, $inclusive_amt (line $line in import file '{$_FILES['imp']['name']}')"));          
-          
-          if ($taxtype > 0)
-          { 
-                   
-                add_gl_trans($type,$curEntryId, $date, $code, $dim1, $dim2 ,$memo, -$exclusive_amt, $currency=null, fa_person_type($person_type_id),$person_id, $err_msg="", $rate=0); 
-                add_audit_trail($type, $curEntryId, $date);
-                display_notification_centered(_("Added to table 'gl_trans Credit:': $curEntryId, $date, $code, $dim1, $dim2, -$exclusive_amt, $memo (line $line in import file '{$_FILES['imp']['name']}')"));    
-      
-                add_gl_trans($type,$curEntryId, $date, $salestaxaccount, $dim1, $dim2 ,$memo, -$taxamt, $currency=null, fa_person_type($person_type_id),$person_id, $err_msg="", $rate=0); 
-                add_audit_trail($type, $curEntryId, $date);
-                display_notification_centered(_("Added tax to table 'gl_trans Credit:': $curEntryId, $date, $salestaxaccount, $dim1, $dim2, -$taxamt, $memo (line $line in import file '{$_FILES['imp']['name']}')"));    
-      
-                if ((customer_exist($person_id)) && ($person_type_id==2))
-                   {
-                      display_notification_centered(_("No tax types should be used with customer deposits since tax is accounted for at source document entry - eg. Invoice'. Use customer id with a control account only. (line $line in import file '{$_FILES['imp']['name']}')"));    
-                   }
-              
-                if ((supplier_exist($person_id)) && ($person_type_id==1))
-                   {
-                      display_notification_centered(_("No tax types should be used with supplier payments since tax is accounted for at source document entry - eg. Invoice'. Use supplier id with a control account only.(line $line in import file '{$_FILES['imp']['name']}')"));    
-                   }  
-          }
-          
-          if ($taxtype == 0)
-          {
-              add_gl_trans($type,$curEntryId, $date, $code, $dim1, $dim2 ,$memo, -$inclusive_amt, $currency=null, fa_person_type($person_type_id),$person_id, $err_msg="", $rate=0); 
-              add_audit_trail($type, $curEntryId, $date);
-              display_notification_centered(_("Added to table 'gl_trans Credit:': $curEntryId, $date, $code, $dim1, $dim2, -$inclusive_amt, $memo (line $line in import file '{$_FILES['imp']['name']}')"));    
-              
-              if ((customer_exist($person_id)) && ($person_type_id==2))
-              {
-                  write_customer_trans(ST_BANKDEPOSIT, $curEntryId, $person_id, $BranchNo, $date, $reference, $inclusive_amt);
-                  display_notification_centered(_("Added to table 'debtor_trans Credit: Payment from customer': $inclusive_amt (line $line in import file '{$_FILES['imp']['name']}')"));    
-              }
-              
-              if ((supplier_exist($person_id)) && ($person_type_id==1))
-              {
-                  write_supp_trans(ST_BANKDEPOSIT, $curEntryId, $person_id, $date, $due_date="", $reference, $supp_reference="", $inclusive_amt, $amount_tax=0, $discount=0);
-                  display_notification_centered(_("Added to table 'supp_trans Credit: Our over-payment amount reimbursed': $inclusive_amt (line $line in import file '{$_FILES['imp']['name']}')"));    
-              }    
-                  
-                  
-          }
-           
-      add_gl_trans($type, $curEntryId, $date, $bank_account_gl_code, $dim1, $dim2 ,$memo, $inclusive_amt, $currency=null, fa_person_type($person_type_id), $person_id, $err_msg="", $rate=0);
-      add_audit_trail($type, $curEntryId, $date);
-      display_notification_centered(_("Added to table 'gl_trans' Debit bank account: $curEntryId, $date, $bank_account_gl_code, $dim1, $dim2, $inclusive_amt, $memo (line $line in import file '{$_FILES['imp']['name']}')"));    
-      add_gl_tax_details($salestaxaccount, ST_BANKDEPOSIT, $curEntryId, -$taxamt, 1, $date, $memo,1, -$inclusive_amt);
-      }
-      If ($type == ST_BANKPAYMENT)
-      {
-         add_bank_trans($type, $curEntryId, $bank_account, $reference, $date, -$inclusive_amt, fa_person_type($person_type_id), $person_id,$currency="", $err_msg="", $rate=0);
-         display_notification_centered(_("Added to table 'bank_trans': $curEntryId, $date, $reference, $code, $dim1, $dim2, -$inclusive_amt (line $line in import file '{$_FILES['imp']['name']}')"));     
-          
-          
-          if ($taxtype > 0)
-          {        
-                add_gl_trans($type,$curEntryId, $date, $code, $dim1, $dim2 ,$memo, $exclusive_amt, $currency=null, fa_person_type($person_type_id),$person_id, $err_msg="", $rate=0);
-                add_audit_trail($type, $curEntryId, $date);
-                display_notification_centered(_("Added to table 'gl_trans' Debit: $curEntryId, $date, $code, $dim1, $dim2, $exclusive_amt, $memo (line $line in import file '{$_FILES['imp']['name']}')"));                                        
-      
-                add_gl_trans($type,$curEntryId, $date, $purchasetaxaccount, $dim1, $dim2 ,$memo, $taxamt, $currency=null, fa_person_type($person_type_id),$person_id, $err_msg="", $rate=0);
-                add_audit_trail($type, $curEntryId, $date);
-                display_notification_centered(_("Added tax to table 'gl_trans' Debit: $curEntryId, $date, $purchasetaxaccount, $dim1, $dim2, $taxamt, $memo (line $line in import file '{$_FILES['imp']['name']}')"));                                        
-                
-                if ((customer_exist($person_id)) && ($person_type_id==2))
-                   {
-                      display_notification_centered(_("No tax types should be used with customer deposits since tax is accounted for at source document entry - Invoice'. Use customer id with a control account only. (line $line in import file '{$_FILES['imp']['name']}')"));    
-                   }
-              
-                if ((supplier_exist($person_id)) && ($person_type_id==1))
-                   {
-                      display_notification_centered(_("No tax types should be used with supplier payments since tax is accounted for at source document entry - Invoice'. Use supplier id with a control account only.(line $line in import file '{$_FILES['imp']['name']}')"));    
-                   }  
-          }
-      if ($taxtype == 0)
-          {
-             add_gl_trans($type,$curEntryId, $date, $code, $dim1, $dim2 ,$memo, $inclusive_amt, $currency=null, fa_person_type($person_type_id),$person_id, $err_msg="", $rate=0);
-             add_audit_trail($type, $curEntryId, $date);
-             display_notification_centered(_("Added to table 'gl_trans' Debit: $curEntryId, $date, $code, $dim1, $dim2, $inclusive_amt, $memo (line $line in import file '{$_FILES['imp']['name']}')")); 
-             
-              if ((customer_exist($person_id)) && $person_type_id==2)
-              {
-                  write_customer_trans(ST_BANKPAYMENT, $curEntryId, $person_id, $BranchNo, $date, $reference, -$inclusive_amt);
-                  display_notification_centered(_("Added to table 'debtor_trans Debit:' Customer over-payment reimbursed -$inclusive_amt (line $line in import file '{$_FILES['imp']['name']}')"));    
-              }
-              
-              if ((supplier_exist($person_id)) && $person_type_id==1)
-              {
-                  write_supp_trans(ST_BANKPAYMENT, $curEntryId, $person_id, $date, $due_date="", $reference, $supp_reference="", -$inclusive_amt, $amount_tax=0, $discount=0);                  
-                  display_notification_centered(_("Added to table 'supp_trans' Debit: Supplier paid -$inclusive_amt (line $line in import file '{$_FILES['imp']['name']}')"));    
-              }  
-             
-         }
-      add_gl_trans($type,$curEntryId, $date, $bank_account_gl_code, $dim1, $dim2 ,$memo, -$inclusive_amt, $currency=null,fa_person_type($person_type_id), $person_id, $err_msg="", $rate=0);
-      add_audit_trail($type, $curEntryId, $date);
-      display_notification_centered(_("Added to table 'gl_trans' Credit bank account: $curEntryId, $date, $bank_account_gl_code, $dim1, $dim2, -$inclusive_amt, $memo (line $line in import file '{$_FILES['imp']['name']}')"));    
-      add_gl_tax_details($purchasetaxaccount, ST_BANKPAYMENT, $curEntryId, $taxamt, 1, $date, $memo,1, $inclusive_amt);
-      }
-   }
-   
+    {
+        add_bank_trans($type, $curEntryId, $bank_account, $l->reference, $date, $inclusive_amt, $ptype, $l->person_id, "", "", 0);
+        display_notification_centered(_("Added to table 'bank_trans': $curEntryId, $date, {$l->reference}, $code, $dim1, $dim2, $inclusive_amt (line $line in import file '$file')"));
 
-   
-//Note: Ajax will be implemented here since default is true
-function checkbox_row($label, $name, $value, $submit_on_change, $title, $params = "") //adapted from check_row to accomodate colspan
-{
-	if (is_array($label))
+        if ($l->taxtype > 0)
         {
-            echo "<tr><td class='label' $params><ul>";
-            foreach ($label as $line => $item) {echo "<li>$item</li>";}
-            echo "</ul></td>";
+            import_bank_gl($type, $curEntryId, $l, $code, $dim1, $dim2, -$exclusive_amt);
+            display_notification_centered(_("Added to table 'gl_trans Credit:': $curEntryId, $date, $code, $dim1, $dim2, -$exclusive_amt, $memo (line $line in import file '$file')"));
+
+            import_bank_gl($type, $curEntryId, $l, $split->salestaxaccount, $dim1, $dim2, -$taxamt);
+            display_notification_centered(_("Added tax to table 'gl_trans Credit:': $curEntryId, $date, {$split->salestaxaccount}, $dim1, $dim2, -$taxamt, $memo (line $line in import file '$file')"));
+
+            if (import_is_customer_line($l))
+            {
+                display_notification_centered(_("No tax types should be used with customer deposits since tax is accounted for at source document entry - eg. Invoice'. Use customer id with a control account only. (line $line in import file '$file')"));
+            }
+
+            if (import_is_supplier_line($l))
+            {
+                display_notification_centered(_("No tax types should be used with supplier payments since tax is accounted for at source document entry - eg. Invoice'. Use supplier id with a control account only.(line $line in import file '$file')"));
+            }
         }
-        else
-            
+
+        if ($l->taxtype == 0)
         {
-            echo "<tr><td class='label' $params>$label</td>";            
-        }           
-        echo "<td>";
-	echo checkbox("", $name, $value, $submit_on_change=true, $title);
-	echo "</td>";
-        echo "</tr>\n";
+            import_bank_gl($type, $curEntryId, $l, $code, $dim1, $dim2, -$inclusive_amt);
+            display_notification_centered(_("Added to table 'gl_trans Credit:': $curEntryId, $date, $code, $dim1, $dim2, -$inclusive_amt, $memo (line $line in import file '$file')"));
+
+            if (import_is_customer_line($l))
+            {
+                write_customer_trans(ST_BANKDEPOSIT, $curEntryId, $l->person_id, $l->branch_no, $date, $l->reference, $inclusive_amt);
+                display_notification_centered(_("Added to table 'debtor_trans Credit: Payment from customer': $inclusive_amt (line $line in import file '$file')"));
+            }
+
+            if (import_is_supplier_line($l))
+            {
+                write_supp_trans(ST_BANKDEPOSIT, $curEntryId, $l->person_id, $date, "", $l->reference, "", $inclusive_amt, 0, 0);
+                display_notification_centered(_("Added to table 'supp_trans Credit: Our over-payment amount reimbursed': $inclusive_amt (line $line in import file '$file')"));
+            }
+        }
+
+        import_bank_gl($type, $curEntryId, $l, $bank_account_gl_code, $dim1, $dim2, $inclusive_amt);
+        display_notification_centered(_("Added to table 'gl_trans' Debit bank account: $curEntryId, $date, $bank_account_gl_code, $dim1, $dim2, $inclusive_amt, $memo (line $line in import file '$file')"));
+        add_gl_tax_details($split->salestaxaccount, ST_BANKDEPOSIT, $curEntryId, -$taxamt, 1, $date, $memo, 1, -$inclusive_amt);
+    }
+    if ($type == ST_BANKPAYMENT)
+    {
+        add_bank_trans($type, $curEntryId, $bank_account, $l->reference, $date, -$inclusive_amt, $ptype, $l->person_id, "", "", 0);
+        display_notification_centered(_("Added to table 'bank_trans': $curEntryId, $date, {$l->reference}, $code, $dim1, $dim2, -$inclusive_amt (line $line in import file '$file')"));
+
+        if ($l->taxtype > 0)
+        {
+            import_bank_gl($type, $curEntryId, $l, $code, $dim1, $dim2, $exclusive_amt);
+            display_notification_centered(_("Added to table 'gl_trans' Debit: $curEntryId, $date, $code, $dim1, $dim2, $exclusive_amt, $memo (line $line in import file '$file')"));
+
+            import_bank_gl($type, $curEntryId, $l, $split->purchasetaxaccount, $dim1, $dim2, $taxamt);
+            display_notification_centered(_("Added tax to table 'gl_trans' Debit: $curEntryId, $date, {$split->purchasetaxaccount}, $dim1, $dim2, $taxamt, $memo (line $line in import file '$file')"));
+
+            if (import_is_customer_line($l))
+            {
+                display_notification_centered(_("No tax types should be used with customer deposits since tax is accounted for at source document entry - Invoice'. Use customer id with a control account only. (line $line in import file '$file')"));
+            }
+
+            if (import_is_supplier_line($l))
+            {
+                display_notification_centered(_("No tax types should be used with supplier payments since tax is accounted for at source document entry - Invoice'. Use supplier id with a control account only.(line $line in import file '$file')"));
+            }
+        }
+        if ($l->taxtype == 0)
+        {
+            import_bank_gl($type, $curEntryId, $l, $code, $dim1, $dim2, $inclusive_amt);
+            display_notification_centered(_("Added to table 'gl_trans' Debit: $curEntryId, $date, $code, $dim1, $dim2, $inclusive_amt, $memo (line $line in import file '$file')"));
+
+            if (import_is_customer_line($l))
+            {
+                write_customer_trans(ST_BANKPAYMENT, $curEntryId, $l->person_id, $l->branch_no, $date, $l->reference, -$inclusive_amt);
+                display_notification_centered(_("Added to table 'debtor_trans Debit:' Customer over-payment reimbursed -$inclusive_amt (line $line in import file '$file')"));
+            }
+
+            if (import_is_supplier_line($l))
+            {
+                write_supp_trans(ST_BANKPAYMENT, $curEntryId, $l->person_id, $date, "", $l->reference, "", -$inclusive_amt, 0, 0);
+                display_notification_centered(_("Added to table 'supp_trans' Debit: Supplier paid -$inclusive_amt (line $line in import file '$file')"));
+            }
+        }
+        import_bank_gl($type, $curEntryId, $l, $bank_account_gl_code, $dim1, $dim2, -$inclusive_amt);
+        display_notification_centered(_("Added to table 'gl_trans' Credit bank account: $curEntryId, $date, $bank_account_gl_code, $dim1, $dim2, -$inclusive_amt, $memo (line $line in import file '$file')"));
+        add_gl_tax_details($split->purchasetaxaccount, ST_BANKPAYMENT, $curEntryId, $taxamt, 1, $date, $memo, 1, $inclusive_amt);
+    }
 }
-//function checkbox_row($label, $name, $value, $params='', $submit_on_change, $title) //adapted from check_row to accomodate colspan
 
 //notify when tax type used with income or expenses.
-//issue warning if 'ie' is returned false => tax type used with asset or liability. 
-function check_tax_appropriate($code, $taxtype, $line)
+//issue warning if 'ie' is returned false => tax type used with asset or liability.
+function check_tax_appropriate(string $code, int $taxtype, int $line): bool
 {
     $ie = true;
-    if ($taxtype > 0) 
+    if ($taxtype > 0)
     {//get account_code and account_type from chart master
-      $sql = "SELECT account_code,account_type FROM ".TB_PREF."chart_master WHERE ".$code." = account_code";
-      $result = db_query($sql, _("Could not query chart_master table"));
-      $row = db_fetch($result);
-      $acctype = $row['account_type'];
-      $sql2 = "SELECT id, class_id FROM ".TB_PREF."chart_types WHERE ".$acctype." = id";
-      $result2 = db_query($sql2, _("Could not query chart_types table"));
-      $row2 = db_fetch($result2);
-      $classid = $row2['class_id'];
-                
-      //if classid < 3 => asset or liability
-      
-      if ($classid > 2) {$ie = true;display_notification_centered(_("Correct: Tax type used with Income or expense:$code. (line $line in import file '{$_FILES['imp']['name']}')"));} else {$ie = false; display_notification_centered(_("Warning: Taxtype used with Asset or Liability.(line $line in import file '{$_FILES['imp']['name']}')"));}
-           
+        $file = import_file_name();
+        $sql = "SELECT account_code,account_type FROM ".TB_PREF."chart_master WHERE account_code = ".db_escape($code);
+        $result = db_query($sql, _("Could not query chart_master table"));
+        $row = db_fetch($result);
+        $acctype = $row === false ? '' : (string)$row['account_type'];
+        $sql2 = "SELECT id, class_id FROM ".TB_PREF."chart_types WHERE id = ".db_escape($acctype);
+        $result2 = db_query($sql2, _("Could not query chart_types table"));
+        $row2 = db_fetch($result2);
+        $classid = $row2 === false ? 0 : (int)$row2['class_id'];
+
+        //if classid < 3 => asset or liability
+        if ($classid > 2) {
+            $ie = true;
+            display_notification_centered(_("Correct: Tax type used with Income or expense:$code. (line $line in import file '$file')"));
+        } else {
+            $ie = false;
+            display_notification_centered(_("Warning: Taxtype used with Asset or Liability.(line $line in import file '$file')"));
+        }
     }
     return $ie;
 }
 
-function check_code_id ($code)
+function check_code_id(string $code): bool
 {
-     $sql = "SELECT account_code FROM ".TB_PREF."chart_master WHERE ".$code." = account_code";
-     $result = db_query($sql, _("Could not query chart_master table"));
-     $row = db_fetch($result);
-     if (db_num_rows($result) > 0) {return true;} else {return false;}
+    $sql = "SELECT account_code FROM ".TB_PREF."chart_master WHERE account_code = ".db_escape($code);
+    $result = db_query($sql, _("Could not query chart_master table"));
+    return db_num_rows($result) > 0;
 }
 
-function check_customer_supplier($code_id,$person_id,$person_type_id,$line,$memo,$error)
+/**
+ * Checks that the customer or supplier of a csv line exists and that control accounts are used with a person.
+ * A found customer or supplier is added to the memo of the line.
+ *
+ * @return bool true when the line has an error
+ */
+function check_customer_supplier(import_line $l, int $line, bool $error): bool
 {
-      if (!empty($person_id)) 
-     {
-      //check that debtor or supplier exist
-      if (($code_id==$_POST['debtors_act']) && ($person_type_id==2) && (customer_exist($person_id)==false)){display_notification_centered(_("Error: Customer does not exist. (line $line in import file '{$_FILES['imp']['name']}') "));$error=true;} 
-      if (($code_id==$_POST['creditors_act']) && ($person_type_id==1) && (supplier_exist($person_id)==false)){display_notification_centered(_("Error: Supplier does not exist. (line $line in import file '{$_FILES['imp']['name']}') "));$error=true;} 
-      //build a memo on current memo if entry line acceptable
-      if (($code_id==$_POST['debtors_act']) && ($person_type_id==2) && (customer_exist($person_id)==true))
-          {
-             $memo = $memo." Customer name: ".customer_name($person_id)." id: ".$person_id;
-          } 
-      if (($code_id==$_POST['creditors_act']) && ($person_type_id==1) && (supplier_exist($person_id)==true))
-          {
-             $memo = $memo." Supplier name: ".supplier_name($person_id)." id: ".$person_id;
-          }
-     }      
-      //check for default control accounts used without $person_id and $person_type_id 
-      if (($code_id==$_POST['debtors_act']) && (($person_id==null) || ($person_type_id==null))){display_notification_centered(_("Error: Debtors Control account used without person_type_id or person_id. (line $line in import file '{$_FILES['imp']['name']}') "));$error=true;}   
-      if (($code_id==$_POST['creditors_act']) && (($person_id==null) || ($person_type_id==null))){display_notification_centered(_("Error: Creditors Control account used without person_type_id or person_id. (line $line in import file '{$_FILES['imp']['name']}') "));$error=true;} 
-    
-return array($error,$memo);    
+    $file = import_file_name();
+    $debtors_act = import_post('debtors_act');
+    $creditors_act = import_post('creditors_act');
+    $code_id = $l->code_id;
+    $person_id = $l->person_id;
+    if ($person_id !== '' && $person_id !== '0')
+    {
+        //check that debtor or supplier exist
+        if (($code_id == $debtors_act) && ($l->person_type_id == 2) && !customer_exist($person_id)) {
+            display_notification_centered(_("Error: Customer does not exist. (line $line in import file '$file') "));
+            $error = true;
+        }
+        if (($code_id == $creditors_act) && ($l->person_type_id == 1) && !supplier_exist($person_id)) {
+            display_notification_centered(_("Error: Supplier does not exist. (line $line in import file '$file') "));
+            $error = true;
+        }
+        //build a memo on current memo if entry line acceptable
+        if (($code_id == $debtors_act) && ($l->person_type_id == 2) && customer_exist($person_id))
+        {
+            $l->memo = $l->memo." Customer name: ".customer_name($person_id)." id: ".$person_id;
+        }
+        if (($code_id == $creditors_act) && ($l->person_type_id == 1) && supplier_exist($person_id))
+        {
+            $l->memo = $l->memo." Supplier name: ".supplier_name($person_id)." id: ".$person_id;
+        }
+    }
+    //check for default control accounts used without $person_id and $person_type_id
+    if (($code_id == $debtors_act) && (($person_id === '') || ($l->person_type_id === ''))) {
+        display_notification_centered(_("Error: Debtors Control account used without person_type_id or person_id. (line $line in import file '$file') "));
+        $error = true;
+    }
+    if (($code_id == $creditors_act) && (($person_id === '') || ($l->person_type_id === ''))) {
+        display_notification_centered(_("Error: Creditors Control account used without person_type_id or person_id. (line $line in import file '$file') "));
+        $error = true;
+    }
+
+    return $error;
 }
 
-
-
-//csv_demo_line("Example Journal Dr:","this", "16/12/2014", $lastjlref, "8100", "D1", "D2", "222.24");
-function csv_demo_line($param,$count,$a,$b,$c,$d,$e,$f,$g,$h,$i,$j,$k,$l,$m) //utilized for displaying examples in a table
+function customer_exist(string $person_id): bool
 {
-    start_row($param); // param usefull for incorporating css classes.
-    label_cell($a,"width=3% wrap",$count+1);
-    label_cell($b,"width=2% wrap",$count+2);
-    label_cell($c,"width=2% wrap",$count+3);
-    label_cell($d,"width=2% wrap",$count+4);
-    label_cell($e,"width=2% wrap",$count+5);
-    label_cell($f,"width=2% align=right wrap",$count+6);
-    label_cell($g,"width=2% wrap",$count+7); 
-    label_cell($h,"width=2% wrap",$count+8);
-    label_cell($i,"width=2% wrap",$count+9);
-    label_cell($j,"width=2% wrap",$count+10);
-    label_cell($k,"width=2% wrap",$count+11);
-    label_cell($l,"width=2% wrap",$count+12);
-    label_cell($m,"width=2% wrap",$count+13);
-    end_row();
-}
-
-// CSV convention: blank = misc, 1 = supplier, 2 = customer. FA 2.4 uses PT_* constants.
-function fa_person_type($csv_type)
-{
-    if ($csv_type == 1) {return PT_SUPPLIER;}
-    if ($csv_type == 2) {return PT_CUSTOMER;}
-    return PT_MISC;
-}
-
-function customer_exist($person_id)
-{
-    $sql= "SELECT debtor_no FROM ".TB_PREF."debtors_master WHERE debtor_no=".db_escape($person_id);
+    $sql = "SELECT debtor_no FROM ".TB_PREF."debtors_master WHERE debtor_no=".db_escape($person_id);
     $result = db_query($sql, _("Could not query debtors master table"));
-    if (db_num_rows($result) > 0) {return true;} else {return false;}    
+    return db_num_rows($result) > 0;
 }
 
-function customer_name($person_id)
+function customer_name(string $person_id): string
 {
-    $sql= "SELECT name FROM ".TB_PREF."debtors_master WHERE debtor_no=".db_escape($person_id);
+    $sql = "SELECT name FROM ".TB_PREF."debtors_master WHERE debtor_no=".db_escape($person_id);
     $result = db_query($sql, _("Could not query debtors master table"));
     $row = db_fetch($result);
-    $custname = $row['name']; 
-    return $custname;
+    return $row === false ? '' : (string)$row['name'];
+}
+
+function supplier_exist(string $person_id): bool
+{
+    $sql = "SELECT supplier_id FROM ".TB_PREF."suppliers WHERE supplier_id=".db_escape($person_id);
+    $result = db_query($sql, _("Could not query supplier master table"));
+    return db_num_rows($result) > 0;
+}
+
+function supplier_name(string $person_id): string
+{
+    $sql = "SELECT supp_name FROM ".TB_PREF."suppliers WHERE supplier_id=".db_escape($person_id);
+    $result = db_query($sql, _("could not query supplier master table"));
+    $row = db_fetch($result);
+    return $row === false ? '' : (string)$row['supp_name'];
 }
 
 //if taxtype > 0 separate into inclusive, exclusive, and tax in preparation for gl split
-function determinetax($taxtype,$amt)
+function determinetax(int $taxtype, float $amt): import_tax_split
 {
-      $initialamt = $amt;
-      $sql = "SELECT * FROM ".TB_PREF."tax_types WHERE id=".db_escape($taxtype);
-      $result = db_query($sql, _("Could not query tax type table"));
-      $row = db_fetch($result);
-      if (!is_array($row)) {$row = array('rate'=>0,'sales_gl_code'=>null,'purchasing_gl_code'=>null);} // unknown tax type: treat as untaxed
-      $taxper = $row['rate'];
-      //determine the VAT accounts associated with the taxtype eg. standard VAT
-      $salestaxaccount = $row['sales_gl_code'];
-      $purchasetaxaccount = $row['purchasing_gl_code'];
-      $taxamt = round(($amt/(1+($taxper/100))*($taxper/100)),2);
-      if ($taxamt < 0){$taxaccount = $salestaxaccount;}else{$taxaccount = $purchasetaxaccount;}
-      $inclusive_amt = round($amt,2);
-      //get the exclusive value
-      $amt=round($amt/(1+($taxper/100)),2);
-      //avoid rounding issues with the following line
-      $exclusive_amt = $inclusive_amt - $taxamt;
-      return array($amt,$inclusive_amt,$exclusive_amt, $taxamt, $taxaccount, $salestaxaccount, $purchasetaxaccount);
+    $sql = "SELECT * FROM ".TB_PREF."tax_types WHERE id=".db_escape($taxtype);
+    $result = db_query($sql, _("Could not query tax type table"));
+    $row = db_fetch($result);
+    $split = new import_tax_split();
+    // an unknown tax type (0 = no tax) is treated as untaxed
+    $taxper = $row === false ? 0.0 : (float)$row['rate'];
+    //determine the VAT accounts associated with the taxtype eg. standard VAT
+    $split->salestaxaccount = $row === false ? '' : (string)$row['sales_gl_code'];
+    $split->purchasetaxaccount = $row === false ? '' : (string)$row['purchasing_gl_code'];
+    $split->tax = round(($amt/(1.0+($taxper/100.0))*($taxper/100.0)),2);
+    $split->taxaccount = $split->tax < 0 ? $split->salestaxaccount : $split->purchasetaxaccount;
+    $split->inclusive = round($amt,2);
+    //get the exclusive value
+    $split->net = round($amt/(1.0+($taxper/100.0)),2);
+    //avoid rounding issues with the following line
+    $split->exclusive = $split->inclusive - $split->tax;
+    return $split;
 }
 
-function display_import_items($title, $order) //adapted from display_gl_items
+/**
+ * Shows the collected journal, deposit or payment lines as a table.
+ *
+ * @return bool true when at least one line was shown
+ */
+function display_import_items(string $title, items_cart $order): bool //adapted from display_gl_items
 {
- global $path_to_root;
- $displayed_at_least_once=false;
- display_heading($title);
- $dim = get_company_pref('use_dimension');
- div_start('items_table');
- start_table(TABLESTYLE2, "colspan=7 width=95%");
- if ($dim == 2)
- $th = array(_("Account Code"), _("Account Description"), _("Dimension")." 1",_("Dimension")." 2", _("Debit"), _("Credit"), _("Memo"),_("Jnl Entry"));
+    $displayed_at_least_once = false;
+    display_heading($title);
+    $dim = (int)get_company_pref('use_dimension');
+    div_start('items_table');
+    start_table(TABLESTYLE2, "colspan=7 width=95%");
+    if ($dim == 2) {
+        $th = array(_("Account Code"), _("Account Description"), _("Dimension")." 1",_("Dimension")." 2", _("Debit"), _("Credit"), _("Memo"),_("Jnl Entry"));
+    } elseif ($dim == 1) {
+        $th = array(_("Account Code"), _("Account Description"), _("Dimension"),_("Debit"), _("Credit"), _("Memo"),_("Jnl Entry"));
+    } else {
+        $th = array(_("Account Code"), _("Account Description"),_("Debit"), _("Credit"), _("Memo"), _("Jnl Entry"));
+    }
 
- else if ($dim == 1)$th = array(_("Account Code"), _("Account Description"), _("Dimension"),_("Debit"), _("Credit"), _("Memo"),_("Jnl Entry"));
- 
- else $th = array(_("Account Code"), _("Account Description"),_("Debit"), _("Credit"), _("Memo"), _("Jnl Entry"));
-  
- if (count($order->gl_items)) $th[] = '';
- table_header($th);	
-$k = 0;
-$id = find_submit('Edit');
-$num = 0;
-foreach ($order->gl_items as $line => $item) 
-{
- if ($id != $line){
-  $num=$num+1;   
-  alt_table_row_color($k);
-  label_cell($item->code_id, "width = 10%");
-  label_cell($item->description,"width = 30%");
-  if ($dim >= 1){label_cell(get_dimension_string($item->dimension_id, true),"wrap width = 10%");}
-  if ($dim > 1){label_cell(get_dimension_string($item->dimension2_id, true),"wrap width = 10%");}
-  if ($item->amount > 0) {
-   amount_cell(abs($item->amount),null,"width=10%");
-   label_cell("","width = 10%"); }
-  //note: the $item->reference is carrying $memo for display purposes. 
-  else {label_cell("","width = 10%");amount_cell(abs($item->amount),null,"width=10%");}label_cell($item->reference,"wrap align=left width=20%");label_cell($num,"width=5% align=right colspan=3");
-  end_row();
- } 
+    if (count($order->gl_items) > 0) {
+        $th[] = '';
+    }
+    table_header($th);
+    $k = 0;
+    $num = 0;
+    foreach ($order->gl_items as $item)
+    {
+        $num = $num + 1;
+        alt_table_row_color($k);
+        label_cell($item->code_id, "width = 10%");
+        label_cell($item->description,"width = 30%");
+        if ($dim >= 1) {
+            label_cell(get_dimension_string($item->dimension_id, true),"wrap width = 10%");
+        }
+        if ($dim > 1) {
+            label_cell(get_dimension_string($item->dimension2_id, true),"wrap width = 10%");
+        }
+        if ($item->amount > 0) {
+            amount_cell(abs($item->amount),false,"width=10%");
+            label_cell("","width = 10%");
+        } else {
+            label_cell("","width = 10%");
+            amount_cell(abs($item->amount),false,"width=10%");
+        }
+        //note: the $item->reference is carrying $memo for display purposes.
+        label_cell($item->reference,"wrap align=left width=20%");
+        label_cell($num,"width=5% align=right colspan=3");
+        end_row();
+    }
+    if ($order->count_gl_items() > 0) {
+        $colspan = ($dim == 2 ? "4" : ($dim == 1 ? "3" : "2"));
+        start_row();
+        label_cell(_("Total"), "align=right colspan=" . $colspan);
+        amount_cell($order->gl_items_total_debit());
+        amount_cell(abs($order->gl_items_total_credit()));
+        label_cell('', "colspan=4");
+        end_row();
+        $displayed_at_least_once = true;
+    }
+    end_table();
+    echo "<br>";
+    div_end();
+    return $displayed_at_least_once;
 }
-if ($order->count_gl_items()) {
- $colspan = ($dim == 2 ? "4" : ($dim == 1 ? "3" : "2"));
- start_row();
- label_cell(_("Total"), "align=right colspan=" . $colspan);
- amount_cell($order->gl_items_total_debit());
- amount_cell(abs($order->gl_items_total_credit()));
- label_cell('', "colspan=4");
- end_row();
- $displayed_at_least_once = true;
- 
+
+function display_entries(int $type, items_cart $entry): bool
+{
+    if ($type == 1) {
+        $title = "Payment Processing";
+    } elseif ($type == 2) {
+        $title = "Deposit Processing";
+    } else {
+        $title = "General Journal Processing";
+    }
+    return display_import_items(_($title), $entry);
 }
-end_table();
-echo "<br>";
-div_end();
-return $displayed_at_least_once;
-}// display import itemsmport items
 
-function display_entries($type,$entry)
+/**
+ * @return int|null the dimension id, 0 for a blank reference, null when there is no dimension with that reference
+ */
+function get_dimension_id_from_dimref(string $ref): ?int
 {
-        if ($type == 0) $jname = "General Journal Processing";
-        if ($type == 1) $jname = "Payment Processing";
-        if ($type == 2) $jname = "Deposit Processing";
-        $title = $jname; 
-        return $displayed_at_least_once = display_import_items(_("$title"), $entry);       
-}        
+    if (trim($ref) == '') {
+        return 0;
+    }
 
-function get_dimension_id_from_dimref($ref)
-{
-	if (($ref == null) || (trim($ref) == '') || (empty($ref))  )
-		return 0;
+    $sql = "SELECT id FROM ".TB_PREF."dimensions WHERE reference LIKE ".db_escape($ref);
 
-        $sql = "SELECT id FROM ".TB_PREF."dimensions WHERE reference LIKE ".db_escape($ref);
+    $result = db_query($sql, _("could not get dimension from reference"));
 
-	$result = db_query($sql, _("could not get dimension from reference"));
+    $row = db_fetch_row($result);
 
-	$row = db_fetch_row($result);
-
-	return $row[0];
-}//function get_dimension_id_from_reference($ref)
+    return $row === false || $row === null ? null : (int)$row[0];
+}
 
 //$entry or item_cart class merely used for tabular display of journal entries.
-function init_entry_part_1($entry) 
+function init_entry_part_1(items_cart $entry): void
 {
-	$entry->clear_items();
-        //group all csv lines 'gl_items' under one entry
-	$entry->order_id = 0;
+    $entry->clear_items();
 }
 
-function init_entry_part_2($entry,$date,$reference)
-{        
-	$entry->tran_date = $date;
-	$entry->reference = $reference;
-	$entry->memo_ = 'Imported via \'Import Multiple Journal Entries\' plugin';	
-}
-function import_type_list_row($label, $name, $selected=null, $submit_on_change=false)
+function init_entry_part_2(items_cart $entry, string $date, string $reference): void
 {
-    $arr = array(ST_JOURNAL=> _("General Journal Processing"),
-    ST_BANKDEPOSIT=> _("Deposit Processing"),
-    ST_BANKPAYMENT=> _("Payment Processing"),ST_SALESORDER=>_("Sales Order Processing"),ST_SALESINVOICE=> _("Direct Sales Invoice Processing ")
-    );
-    //echo "<tr><td class='label'>$label</td><td>";
-    echo "<tr><td class='label' colspan=1>$label</td><td>";
-    echo array_selector($name, $selected, $arr, 
-    array(
-	'select_submit'=> $submit_on_change,
-	'async' => false,
-	));
-    echo "</td></tr>\n";
-}//function import_type_list_row($label, $name, $selected=null, $submit_on_change=false)
-
-function initialize_controls()
-{
-    initialize_main_controls();
-    initialize_tools_controls();    
+    $entry->tran_date = $date;
+    $entry->reference = $reference;
+    $entry->memo_ = 'Imported via \'Import Multiple Journal Entries\' plugin';
 }
 
-function initialize_main_controls()
-//initialize dropdown boxes
+/**
+ * Adds the lines of one csv line to the table shown for a journal, deposit or payment.
+ *
+ * @return int the number of the next gl item
+ */
+function journal_display(int $i, int $type, int $taxtype, float $amt, items_cart $entry, string $code_id, int $dim1, int $dim2, string $memo, string $description, string $bank_account_gl_code, string $bankdesc): int
 {
-$myrow = get_company_prefs();    
-if (!isset($_POST['debtors_act'])) $_POST['debtors_act']  = $myrow["debtors_act"];
-if (!isset($_POST['creditors_act'])) $_POST['creditors_act']  = $myrow["creditors_act"];  
-if (!isset($_POST['type'])) $_POST['type'] = null;
-if (!isset($_POST['stateformat'])) {$stateformat = null;$_POST['stateformat']=null;}
-if (!isset($_POST['cashorcredit'])) $_POST['cashorcredit']=null;
-if (!isset($_POST['salestools'])) $_POST['salestools']=null;
-if (!isset($_POST['tools'])) $_POST['tools']=null;
-if (!isset($_POST['lookup'])) $_POST['lookup']=null;
-if (!isset($_POST['notes'])) $_POST['notes']=null;
-if (!isset($_POST['sep'])) $_POST['sep'] = ",";
-if (!isset($_POST['bank_account'])) $_POST['bank_account'] = _("Current account");
-if (!isset($_FILES['imp'])) $_FILES['imp'] = null;
-if (!isset($_POST['trial'])) $_POST['trial'] = !null;
-}
-
-function initialize_tools_controls()
-{
-if (!isset($_POST['cust'])) $_POST['cust'] = null;
-if (!isset($_POST['supp'])) $_POST['supp'] = null;
-if (!isset($_POST['fis'])) $_POST['fis'] = null;
-if (!isset($_POST['ttype'])) $_POST['ttype'] = null;
-if (!isset($_POST['payment'])) $_POST['payment'] = null;
-if (!isset($_POST['payment2'])) $_POST['payment2'] = null;
-//_("Cash Only");
-if (!isset($_POST['lookrefs'])) $_POST['lookrefs'] = _("Select a reference");
-}
-
-
-function journal_display($i,$type,$taxtype,$amt,$entry,$code_id, $dim1, $dim2, $memo, $description,$bank_account_gl_code,$bankdesc)
-{
-  if ($taxtype > 0) //tax inclusive
-      {     
-       list($return_amt, $inclusive_amt,$exclusive_amt,$taxamt,$taxaccount,$salestaxaccount, $purchasetaxaccount)=determinetax($taxtype,$amt); 
-       $taxdesc = get_gl_account_name($taxaccount);
-       if ($type == 0) //tax inclusive and journal line
-          {
-          $entry->gl_items[$i] = new gl_item($code_id, $dim1, $dim2, $exclusive_amt, $memo, $description);
-          $i=$i+1;
-          $entry->gl_items[$i] = new gl_item($taxaccount, $dim1, $dim2, $taxamt, $memo, $taxdesc); 
-          }
-       
-       if ($type == 1) //tax inclusive and bank payment
-          {
-          $entry->gl_items[$i] = new gl_item($code_id, $dim1, $dim2, $exclusive_amt, $memo, $description);
-          $i=$i+1;
-          $entry->gl_items[$i] = new gl_item($taxaccount, $dim1, $dim2, $taxamt, $memo, $taxdesc);          
-          $i=$i+1;
-          $entry->gl_items[$i] = new gl_item($bank_account_gl_code, $dim1, $dim2, -$amt, $memo, $bankdesc);
-          }
-      
-       if ($type == 2) //tax inclusive and bank deposit
-          {
-          $entry->gl_items[$i] = new gl_item($code_id, $dim1, $dim2, -$exclusive_amt, $memo, $description);
-          $i=$i+1;
-          $entry->gl_items[$i] = new gl_item($taxaccount, $dim1, $dim2, -$taxamt, $memo, $taxdesc);          
-          $i=$i+1;
-          $entry->gl_items[$i] = new gl_item($bank_account_gl_code, $dim1, $dim2, $amt, $memo, $bankdesc);
-          }
-      }   
-      
-       if ($taxtype == 0)
-      {    
-       if ($type == 0) //tax exclusive and journal line
-          {
-          $entry->gl_items[$i] = new gl_item($code_id, $dim1, $dim2, $amt, $memo, $description);
-          }
-       
-       if ($type == 1) //tax exclusive and bank payment
-          {
-          $entry->gl_items[$i] = new gl_item($code_id, $dim1, $dim2, $amt, $memo, $description);
-          $i=$i+1;
-          $entry->gl_items[$i] = new gl_item($bank_account_gl_code, $dim1, $dim2, -$amt, $memo, $bankdesc);
-          }
-       
-        if ($type == 2) //tax exclusive and bank deposit
-          {
-          $entry->gl_items[$i] = new gl_item($code_id, $dim1, $dim2, -$amt, $memo, $description);
-          $i=$i+1;
-          $entry->gl_items[$i] = new gl_item($bank_account_gl_code, $dim1, $dim2, $amt, $memo, $bankdesc);
-          }
-       } //if ($taxtype == 0)   
-           
-      $i=$i+1; 
-      return $i;
-    
-}
-
-function journal_inclusive_tax($type,$date, $line, $curEntryId, $code, $dim1, $dim2, $memo, $amt, $taxtype,$person_type_id,$person_id) // extra inclusive of tax column in csv
-{
-    list($return_amt,$inclusive_amt,$exclusive_amt,$taxamt,$taxaccount,$salestaxaccount,$purchasetaxaccount)=determinetax($taxtype, $amt);
-    if (($taxtype > 0 ))  //amt inclusive of tax
+    if ($taxtype > 0) //tax inclusive
     {
-      add_gl_trans($type, $curEntryId, $date, $taxaccount, $dim1, $dim2 ,$memo, $taxamt, $currency=null, fa_person_type($person_type_id), $person_id, $err_msg="", $rate=0); //credit tax control account
-      if ($return_amt<0){display_notification_centered(_("Added tax to table 'gl_trans' Credit: $curEntryId, $date, $taxaccount, $dim1, $dim2, $taxamt, $memo (line $line in import file '{$_FILES['imp']['name']}')"));}
-      if ($return_amt>0){display_notification_centered(_("Added tax to table 'gl_trans' Debit: $curEntryId,$date, $taxaccount, $dim1, $dim2, $taxamt, $memo (line $line in import file '{$_FILES['imp']['name']}')"));}
-      add_gl_tax_details($taxaccount, ST_JOURNAL, $curEntryId, $taxamt, 1, $date, $memo,1,$inclusive_amt);
+        $split = determinetax($taxtype, $amt);
+        $taxdesc = get_gl_account_name($split->taxaccount);
+        if ($type == 0) //tax inclusive and journal line
+        {
+            $entry->gl_items[$i] = new gl_item($code_id, $dim1, $dim2, $split->exclusive, $memo, $description);
+            $i = $i + 1;
+            $entry->gl_items[$i] = new gl_item($split->taxaccount, $dim1, $dim2, $split->tax, $memo, $taxdesc);
+        }
+
+        if ($type == 1) //tax inclusive and bank payment
+        {
+            $entry->gl_items[$i] = new gl_item($code_id, $dim1, $dim2, $split->exclusive, $memo, $description);
+            $i = $i + 1;
+            $entry->gl_items[$i] = new gl_item($split->taxaccount, $dim1, $dim2, $split->tax, $memo, $taxdesc);
+            $i = $i + 1;
+            $entry->gl_items[$i] = new gl_item($bank_account_gl_code, $dim1, $dim2, -$amt, $memo, $bankdesc);
+        }
+
+        if ($type == 2) //tax inclusive and bank deposit
+        {
+            $entry->gl_items[$i] = new gl_item($code_id, $dim1, $dim2, -$split->exclusive, $memo, $description);
+            $i = $i + 1;
+            $entry->gl_items[$i] = new gl_item($split->taxaccount, $dim1, $dim2, -$split->tax, $memo, $taxdesc);
+            $i = $i + 1;
+            $entry->gl_items[$i] = new gl_item($bank_account_gl_code, $dim1, $dim2, $amt, $memo, $bankdesc);
+        }
     }
-    add_gl_trans($type, $curEntryId, $date, $code, $dim1, $dim2 ,$memo, $exclusive_amt, $currency=null, fa_person_type($person_type_id),$person_id, $err_msg="", $rate=0);
-    if ($return_amt >0){display_notification_centered(_("Added to table 'gl_trans' Debit: $curEntryId, $date, $code, $dim1, $dim2, $exclusive_amt, $memo (line $line in import file '{$_FILES['imp']['name']}')"));} 
-    if ($return_amt <0){display_notification_centered(_("Added to table 'gl_trans' Credit: $curEntryId, $date, $code, $dim1, $dim2, $exclusive_amt, $memo (line $line in import file '{$_FILES['imp']['name']}')"));} 
+
+    if ($taxtype == 0)
+    {
+        if ($type == 0) //tax exclusive and journal line
+        {
+            $entry->gl_items[$i] = new gl_item($code_id, $dim1, $dim2, $amt, $memo, $description);
+        }
+
+        if ($type == 1) //tax exclusive and bank payment
+        {
+            $entry->gl_items[$i] = new gl_item($code_id, $dim1, $dim2, $amt, $memo, $description);
+            $i = $i + 1;
+            $entry->gl_items[$i] = new gl_item($bank_account_gl_code, $dim1, $dim2, -$amt, $memo, $bankdesc);
+        }
+
+        if ($type == 2) //tax exclusive and bank deposit
+        {
+            $entry->gl_items[$i] = new gl_item($code_id, $dim1, $dim2, -$amt, $memo, $description);
+            $i = $i + 1;
+            $entry->gl_items[$i] = new gl_item($bank_account_gl_code, $dim1, $dim2, $amt, $memo, $bankdesc);
+        }
+    }
+
+    return $i + 1;
 }
 
-function journal_id($prev_date,$date,$amt, $input_id, $total_debit_positive, $total_credit_negative, $line)
+// extra inclusive of tax column in csv
+function journal_inclusive_tax(int $type, int $line, int $curEntryId, import_line $l, int $dim1, int $dim2): void
 {
-    $new_id = $input_id;
-    $error=false;
-    if ($amt > 0) {$total_debit_positive=$total_debit_positive+$amt;}
-    if ($amt < 0) {$total_credit_negative=$total_credit_negative+(abs($amt));}   
-    //as soon as debits equal credits create a new journal group id for the next journal line in the csv file
-    //to be processed
-    //the current csv line being processed will use the $new_id
-    if (($total_debit_positive - $total_credit_negative) == 0)
-      {
-        if ($prev_date <> $date) {display_notification(_("Error: Dates do not correspond. (line $line in import file '{$_FILES['imp']['name']}')"));$error=true;}
-        
-        $total_debit_positive=0;
-        $total_credit_negative=0;
-        $input_id = $input_id + 1;
-      }
-    return array($error,$input_id, $new_id,$total_debit_positive,$total_credit_negative);
+    $split = determinetax($l->taxtype, $l->amt);
+    $file = import_file_name();
+    $date = $l->date;
+    $memo = $l->memo;
+    $ptype = fa_person_type($l->person_type_id);
+    if ($l->taxtype > 0) //amt inclusive of tax
+    {
+        add_gl_trans($type, $curEntryId, $date, $split->taxaccount, $dim1, $dim2, $memo, $split->tax, null, $ptype, $l->person_id, "", 0); //credit tax control account
+        if ($split->net < 0) {
+            display_notification_centered(_("Added tax to table 'gl_trans' Credit: $curEntryId, $date, {$split->taxaccount}, $dim1, $dim2, {$split->tax}, $memo (line $line in import file '$file')"));
+        }
+        if ($split->net > 0) {
+            display_notification_centered(_("Added tax to table 'gl_trans' Debit: $curEntryId,$date, {$split->taxaccount}, $dim1, $dim2, {$split->tax}, $memo (line $line in import file '$file')"));
+        }
+        add_gl_tax_details($split->taxaccount, ST_JOURNAL, $curEntryId, $split->tax, 1, $date, $memo, 1, $split->inclusive);
+    }
+    add_gl_trans($type, $curEntryId, $date, $l->code_id, $dim1, $dim2, $memo, $split->exclusive, null, $ptype, $l->person_id, "", 0);
+    if ($split->net > 0) {
+        display_notification_centered(_("Added to table 'gl_trans' Debit: $curEntryId, $date, {$l->code_id}, $dim1, $dim2, {$split->exclusive}, $memo (line $line in import file '$file')"));
+    }
+    if ($split->net < 0) {
+        display_notification_centered(_("Added to table 'gl_trans' Credit: $curEntryId, $date, {$l->code_id}, $dim1, $dim2, {$split->exclusive}, $memo (line $line in import file '$file')"));
+    }
+}
+
+/**
+ * Tracks when the csv lines of a journal add up to debits equal to credits.
+ *
+ * As soon as debits equal credits the journal is complete and the next csv line starts a new one. Every line of a
+ * journal must carry the same date as the line before it.
+ *
+ * @return array{0: bool, 1: bool, 2: float, 3: float} error, journal complete, total debits, total credits
+ */
+function journal_id(?string $prev_date, string $date, float $amt, float $total_debit_positive, float $total_credit_negative, int $line): array
+{
+    $error = false;
+    $complete = false;
+    if ($amt > 0) {
+        $total_debit_positive = $total_debit_positive + $amt;
+    }
+    if ($amt < 0) {
+        $total_credit_negative = $total_credit_negative + abs($amt);
+    }
+    if (round($total_debit_positive - $total_credit_negative, 2) == 0)
+    {
+        if ($prev_date != $date) {
+            display_notification(_("Error: Dates do not correspond. (line $line in import file '".import_file_name()."')"));
+            $error = true;
+        }
+
+        $total_debit_positive = 0.0;
+        $total_credit_negative = 0.0;
+        $complete = true;
+    }
+    return array($error, $complete, $total_debit_positive, $total_credit_negative);
 }
 
 //Output the last transno for bank related transactions using table bank_trans.
 //Output the last typeno for general ledger related transactions using table gl_trans.
-
-function last_transno($type)
+function last_transno(int $type): int
 {
     //'get last row's typeno since type_no is the trans no'
     if ($type == ST_BANKDEPOSIT || $type == ST_BANKPAYMENT)
     {
         $sql = "SELECT id, type, trans_no, amount FROM ".TB_PREF."bank_trans ORDER BY id DESC LIMIT 1";
-        $result = db_query($sql, _("Cannot locate last entry"));
-        $row = db_fetch_assoc($result);
-        $rowtrans = $row['trans_no'];        
-    } // end if
-    
-    if ($type == ST_JOURNAL)
-    {    
+        $column = 'trans_no';
+    }
+    elseif ($type == ST_JOURNAL)
+    {
         $sql = "SELECT counter, type, type_no, amount FROM ".TB_PREF."gl_trans ORDER BY counter DESC LIMIT 1";
-        $result = db_query($sql, _("Cannot locate last entry"));
-        $row = db_fetch_assoc($result);
-        $rowtrans = $row['type_no'];        
-    } // end if
-    
-    if (($type == ST_SALESORDER) || ($type == ST_SALESINVOICE))
+        $column = 'type_no';
+    }
+    elseif (($type == ST_SALESORDER) || ($type == ST_SALESINVOICE))
     {
-         
-            $sql = "SELECT trans_no,type FROM ".TB_PREF."debtor_trans ORDER BY trans_no DESC LIMIT 1";
-            $result = db_query($sql, _("Cannot locate last entry"));
-            $row = db_fetch_assoc($result);
-            $rowtrans = $row['trans_no'];     
+        $sql = "SELECT trans_no,type FROM ".TB_PREF."debtor_trans ORDER BY trans_no DESC LIMIT 1";
+        $column = 'trans_no';
     }
-    return $rowtrans;//
-}//function last_transno($type)
-
-function reference_type_list_cell($label, $name, $selected=null, $submit_on_change=false)
-{
-    global $systypes_array;
-    $arr = $systypes_array; //sysnames.inc
-    echo "<td class='label' colspan=1>$label</td><td>";
-    echo array_selector($name, $selected, $arr, 
-    array(
-	'select_submit'=> $submit_on_change,
-	'async' => false,
-	));
-    echo "</td>";
-}   
-
-function supplier_exist($person_id)
-{
-    $sql= "SELECT supplier_id FROM ".TB_PREF."suppliers WHERE supplier_id=".db_escape($person_id);
-    $result = db_query($sql, _("Could not query supplier master table"));
-    if (db_num_rows($result) > 0) {return true;} else {return false;} 
-}//function supplier_exist($person_id)
-
-function supplier_name($person_id)
-{
-    $sql= "SELECT supp_name FROM ".TB_PREF."suppliers WHERE supplier_id=".db_escape($person_id);
-    $result = db_query($sql, _("could not query supplier master table"));
-    $row = db_fetch($result);
-    $suppname = $row['supp_name'];
-    return $suppname;
-}
-//function supplier_name($person_id)
-
-function show_table_section_bank_account_number()
-{
-    $bank = $_POST['bank_account'];
-    $account = get_bank_gl_account($bank); 
-    table_section_title(_("Bank Accounts"),2);
-    label_row(_("Account number: "), $account,'colspan=1');
-    
-}
-function show_table_section_company_settings_lookup()
-{
-    table_section_title(_("Lookup: Company Settings"),2);
-    echo "<tr class='oddrow'>";gl_all_accounts_list_cells(_("General Ledger Account Lookup:"), false,false, false, false, _("All Accounts"),$submit_on_change=false);echo "</tr>";
-    echo "<tr class='oddrow'>";fiscalyears_list_cells(_("Active Fiscal year(s):"),'fis',false);echo "</tr>";
-    echo "<tr class='evenrow'>";dateformats_list_row(_("User selected Display format:"), "date_format", user_date_format());echo "</tr>";
-    table_section_title("");
-}
-
-function show_table_section_csv_separator()
-{
-    table_section_title(_("CSV fields are separated by: "),2);
-    text_cells(_("Field Separator:"), 'sep', $_POST['sep'], 2, 1,$title="",'colspan=1');
-}
-function show_table_section_control_accounts()
-{
-     table_section_title(_("Control Accounts"),2);
-     echo "<tr>";gl_all_accounts_list_cells(_("Receivable Account / Debtors Control account Default:"), 'debtors_act',$_POST['debtors_act']);echo "</tr>";
-     echo "<tr>";gl_all_accounts_list_cells(_("Payable Account / Creditors Control account Default:"), 'creditors_act',$_POST['creditors_act']);echo "</tr>";
-}
-function show_table_section_display($type)
-{
-    global $Ajax;
-    table_section_title(_("Display"),2);
-    $array = array(ST_SALESORDER,ST_SALESINVOICE);
-    if (in_array($type, $array, false))
+    else
     {
-    checkbox_row(_("Lookup id's for Payment terms relating to Sales Orders / Invoices "), 'salestools', $_POST['salestools'], $submit_on_change=true,$title="",'colspan=1');
-    if ((isset($_POST['salestools'])) && ($_POST['salestools'] !=null)) {show_table_section_sales();} else $Ajax->activate('_page_body');
+        return 0;
     }
-    checkbox_row(_("Lookup id's for Tax Type, Customers, and Suppliers"), 'tools', $_POST['tools'], $submit_on_change=true,$title="",'colspan=1');
-    if ((isset($_POST['tools'])) && ($_POST['tools'] !=null)) {show_table_section_tools();} else $Ajax->activate('_page_body');
-    checkbox_row(_("Display Company Settings Lookup"), 'lookup', $_POST['lookup'], $submit_on_change=true,$title="",'colspan=1');
-    if ((isset($_POST['lookup'])) && ($_POST['lookup'] !=null)) {show_table_section_company_settings_lookup();} else $Ajax->activate('_page_body');
-    checkbox_row(_("Display Help Notes"), 'notes', $_POST['notes'], $submit_on_change=true,$title="",'colspan=1');
-    if ((isset($_POST['notes'])) && ($_POST['notes'] !=null)) {show_table_section_notes($type);} else $Ajax->activate('_page_body');
+    $result = db_query($sql, _("Cannot locate last entry"));
+    $row = db_fetch_assoc($result);
+    return is_array($row) ? (int)$row[$column] : 0;
 }
-
-function show_table_section_import_settings()
-{
-    table_section_title(_("Import Settings"),2);
-    import_type_list_row(_("Import Type:"), 'type', $_POST['type'], true);
-    if (($_POST['type'] == ST_BANKPAYMENT) || ($_POST['type'] == ST_BANKDEPOSIT))
-    {bank_accounts_list_cells( $_POST['type'] == ST_BANKPAYMENT ? _("From:") : _("To:"), 'bank_account',$selected_id="",$_POST['bank_account']);
-      show_table_section_bank_account_number();
-    }
-     return $type = $_POST['type'];
-}
-
-function show_table_section_important_bank()
-{
-    table_section_title(_("Display Help Notes: Important regarding bank transactions"),2);
-    label_row(_("1.No negative amounts. Payment amounts are converted to negative amounts for the table 'bank_trans' which represent credit amounts."),"",'colspan=1');
-    label_row(_("2.Tax inclusive expenses (eg.rent) or tax inclusive income (eg. sales) must include a taxtype if a company is registered for VAT."),"",'colspan=1');
-    label_row(_("3.Dim1_ref is a description for the dimension id. "),"",'colspan=1');
-    label_row(_("4.Non-essential fields: dim1_ref, dim2_ref. Include as column headers in csv even if not used."),"",'colspan=1');
-    label_row(_("5.The reference field is stored in a separate database 'refs' and should be unique to every transaction."),"",'colspan=1');
-    label_row(_("6. Ensure that your csv file date format includes a 4 number year ie. YYYY. Use a low-level format editor to confirm this since format can be lost when saving to csv format. So check your csv with Notepad+ for a four digit year."),"",'colspan=1');
-    label_row(_("7. Ensure that 'Account code' in your spreadsheet is in text format since eg. 0010 will lose its zeros in number format when saving to csv."),"",'colspan=1');
-    label_row(_("8. Template: <a href='./templates/payment_en_GB.csv'>payment_en_GB.csv using British Chart of Accounts</a> for Payment only processing. Template: <a href='./templates/deposit_en_GB.csv'>deposit_en_GB.csv using British Chart of Accounts </a> for Deposit only processing.  Template: <a href='./templates/bank_en_GB.csv'>bank_en_GB.csv using British Chart of Accounts</a> for Bank Statement format processing."),"",'colspan=1');    
-}
-
-function show_table_section_important_journals()
-{
-    table_section_title(_("Display Help Notes: Important regarding Journals"),2);
-    label_row(_("1. Credit amounts must be shown with a negative amount."),"",'colspan=1');        
-    label_row(_("2. Tax inclusive expenses (eg.rent) or tax inclusive income (eg. sales) must include a taxtype, normally 1, if a company is registered for VAT and has set up various tax types."),"",'colspan=1');
-    label_row(_("3. No bank transactions are to be processed through the journal. Use 'Deposit Processing' or 'Payment Processing' for this purpose."),"",'colspan=1');
-    label_row(_("4. Ensure that your csv file date format eg. DD/MM/YYYY includes a 4 number year ie. YYYY, and it complies with your User selected date format, eg. DDMMYYYY as indicated above under tools. Do this preferably with a low-level format editor since format can be lost when converting to csv from a spreadsheet package. So check your csv with Notepad+ for a four digit year."),"",'colspan=1');
-    label_row(_("5. Ensure that 'Account code' in your spreadsheet is in text format since eg. 0010 will lose its zeros in number format when saving to csv."),"",'colspan=1');
-    label_row(_("6. Use Template: <a href='./templates/journal_en_GB.csv'>journal_en_GB.csv using British Chart of Accounts</a>"),"",'colspan=1');
-    label_row(_("7. The correct debtors control account (eg. 1100) or creditors control account (eg. 2100) should be used with Person_type_id and Person_id. Use 'Display Tax Type, Customers, and Suppliers' to check Person_type_id and Person_id."),"",'colspan=1');
-    label_row(_("8. Only General Ledger accounts should be used here. Individual customers and suppliers accounts under their respective accounts are not updated with this extension."),"",'colspan=1');
-    label_row(_("9. Use the 'Sales Order Processing / Direct Sales Invoice Processing' to import individual orders/invoices relative to customers and suppliers."),"",'colspan=1');
-}
-
-function show_table_section_notes($type)
-{
-    if ($type == 0)
-    {
-        show_table_section_important_journals();   
-    }
-    if (($type == 1) || ($type == 2))
-    {
-        show_table_section_important_bank();
-    }
-    
-    //
-    // ST_SALESORDERS / ST_SALESINVOICES
-    if (($type == 30)||($type == 10))
-    {
-        show_table_section_sales_notes();   
-    }
-}
-
-function show_table_section_sales_notes()
-{
-    table_section_title(_("Display Help Notes: Important regarding Importing Sales Documents"),2);
-    label_row(_("1. Use Template: <a href='./templates/salesinvoices_two_invoices_multiitems_cash_sale.csv'>Import Sales Orders / Invoices</a> to import Sales Orders/Invoices from other packages."),"",'colspan=1');        
-    label_row(_("2. Import multi-line, and single-line sales orders, and direct invoices."),"",'colspan=1');
-    label_row(_("3. Use the lookup tool for payment terms located under Display. eg. Payment term id for cash sales is 4."),"",'colspan=1');
-    label_row(_("4. Credit sales invoices normally have 1 of 3 payment term id's. eg. Payment term id of 1 for 'Due 15th Of the Following Month' "),"",'colspan=1');
-    label_row(_("5. Ensure that your item_code, eg. 001, for Services in your spreadsheet has a 'Text' column format otherwise you will lose your leading zeros when saving your to csv. "),"",'colspan=1');
-    label_row(_("6. The reference column with, eg. T45, or simply a number eg. 5, is very important since it defines the start and finish of a source document in the spreadsheet."),"",'colspan=1');
-    label_row(_("7. Ensure that you have a delivery address completed."),"",'colspan=1');
-    label_row(_("8. Sales orders and delivery notes are automatically created if 'Direct Sales Invoice Processing' is selected."),"",'colspan=1');
-    label_row(_("9. If the Payment id column has a value of 4 in it, ie. Cash Only,  this will automatically allocate a Customer Payment to the invoice from the Petty Cash Account."),"",'colspan=1');
-}
-
-function show_table_section_sales()
-{
-    table_section_title(_("Lookup: Orders / Invoices"),2);
-    checkbox_row(_("Cash Only (no tick)/Credit Sales (tick)"), 'cashorcredit', $_POST['cashorcredit'], $submit_on_change=true,$title="",'colspan=1');
-    $paymcat = ((isset($_POST['cashorcredit'])) && ($_POST['cashorcredit'] !=null) ? PM_CREDIT : ((!isset($_POST['cashorcredit'])) && ($_POST['cashorcredit'] == null) ? PM_CASH : PM_ANY));
-    echo "<tr class='evenrow'>";$paymentterms = sale_payment_list_cells(_("Payment terms:"), 'payment', $paymcat, $selected_id=null, $submit_on_change=true);echo "</tr>";
-    echo "<tr class='oddrow'>";label_cell(_("Payment id: (Use this in the template provided under 'Display Help Notes'"),'colspan=1');label_cell($_POST['payment'],'colspan=1 align=right width=20px');echo "</tr>"; 
-    table_section_title("");
-}
-
-function show_table_section_tools()
-{
-    table_section_title(_("Lookup: Tax Type, Customers, and Suppliers"),2);
-    echo "<tr class='evenrow'>";tax_types_list_cells(_("Tax Type:"),'ttype',$_POST['ttype'],_("All Tax types"),$submit_on_change=true);echo "</tr>";
-    $ttype=$_POST['ttype'];
-    if ($ttype==-1) $ttype=null;
-    echo "<tr class='oddrow'>";label_cell(_("Taxtype id:"),'colspan=1');label_cell($ttype,'colspan=1 align=right width=20px');echo "</tr>";
-    echo "<tr class='evenrow'>";customer_list_cells(_("Customer:"),'cust',$_POST['cust'],_("All Customers"),true);echo "</tr>";
-    $cust=$_POST['cust'];
-    echo "<tr class='oddrow'>";label_cell(_("Person_id:"),'colspan=1');label_cell($cust,'colspan=1 align=right width=20px');echo "</tr>";
-    echo "<tr class='evenrow'>";supplier_list_cells(_("Supplier:"),'supp',$_POST['supp'],_("All Suppliers"),true);echo "</tr>";
-    $supp=$_POST['supp'];
-    echo "<tr class='oddrow'>";label_cell(_("Person_id:"),'colspan=1');label_cell($supp,'colspan=1 align=right width=20px');echo "</tr>";
-    table_section_title("");
-}
-
-function show_table_section_trial_or_final()
-{
-    table_section_title(_("Trial-run (tick) or Final-run (no tick)"),2);
-    check_row(_("Trial-run before importing. Do NOT process into database."), 'trial', $_POST['trial']=!null, $submit_on_change = false,$title="");
-    label_row(_("Import File:"), "<input type='file' id='imp' name='imp'>",'colspan=1');
- }
-
-function show_table_section_bankstatement_checkbox()
-{
-    $bs = array(    _("First amount column (col D) in csv = Payments"),
-                    _("Second amount column (col E) in csv = Deposits"),
-                    _("The same csv file should be used for both 'Payment' and 'Deposit' processing."),
-                    _("When you select 'Deposit Processing' then all csv lines with an amount in the Payments column D will be ignored."),
-                    _("When you select 'Payment Processing' then all csv lines with an amount in the Deposits column E will be ignored."),
-                    _("Typically you will import a Bank statement in csv format from your bank and adjust it according to required columns."),
-                    _("Bank statement = columns B,C,D,E"),
-                    _("Add columns A (reference), and columns F,G,H,I,J,K. See template."),
-                    _("You will need to process bank.csv twice. Once with 'Payment Processing', next with 'Deposit Processing'"),
-                    _("Template <a href='./templates/bank_en_GB.csv'>bank_en_GB.csv</a>."));
-    table_section_title(_("Bank Statement Format"),2);
-    checkbox_row($bs, 'stateformat', $_POST['stateformat'], false, $title = "", 'colspan=1 wrap align=left');
-    return $stateformat = $_POST['stateformat'];
-}
-?>
-

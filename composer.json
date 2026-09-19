@@ -1,0 +1,18 @@
+{
+    "name": "rossaddison/import_transactions",
+    "description": "FrontAccounting 2.4 extension: import journals, deposits, payments, bank statements and sales invoices from CSV.",
+    "type": "project",
+    "license": "GPL-3.0-or-later",
+    "require": {
+        "php": ">=7.4"
+    },
+    "require-dev": {
+        "vimeo/psalm": "6.17.2"
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "scripts": {
+        "psalm": "psalm --no-cache"
+    }
+}
