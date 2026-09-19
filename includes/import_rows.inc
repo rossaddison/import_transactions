@@ -19,30 +19,21 @@ function import_cell(array $data, int $index): string
  */
 final class import_line
 {
-	/** @var string */
-	public $reference = '';
-	/** @var string */
-	public $date = '';
-	/** @var string */
-	public $memo = '';
-	/** @var float */
-	public $amt = 0.0;
-	/** @var string amount written in the opposite direction column of a bank statement */
-	public $ignore = '';
-	/** @var string */
-	public $code_id = '';
-	/** @var int */
-	public $taxtype = 0;
-	/** @var string */
-	public $dim1_ref = '';
-	/** @var string */
-	public $dim2_ref = '';
-	/** @var string as typed in the csv; '' means the column was left blank */
-	public $person_type_id = '';
-	/** @var string as typed in the csv; '' means the column was left blank */
-	public $person_id = '';
-	/** @var string */
-	public $branch_no = '';
+	public string $reference = '';
+	public string $date = '';
+	public string $memo = '';
+	public float $amt = 0.0;
+	// amount written in the opposite direction column of a bank statement
+	public string $ignore = '';
+	public string $code_id = '';
+	public int $taxtype = 0;
+	public string $dim1_ref = '';
+	public string $dim2_ref = '';
+	// as typed in the csv; '' means the column was left blank
+	public string $person_type_id = '';
+	// as typed in the csv; '' means the column was left blank
+	public string $person_id = '';
+	public string $branch_no = '';
 
 	/**
 	 * @param array<int, string|null> $data one CSV record
@@ -93,54 +84,31 @@ final class import_line
  */
 final class import_sales_line
 {
-	/** @var string */
-	public $customer_id = '';
-	/** @var string */
-	public $branch_no = '';
-	/** @var string */
-	public $reference = '';
-	/** @var string */
-	public $date = '';
-	/** @var string */
-	public $payment_id = '';
-	/** @var string */
-	public $sales_type_name = '';
-	/** @var string */
-	public $dimension_id = '';
-	/** @var string */
-	public $dimension2_id = '';
-	/** @var string */
-	public $item_code = '';
-	/** @var string */
-	public $item_description = '';
-	/** @var string */
-	public $quantity = '';
-	/** @var string */
-	public $unit = '';
-	/** @var string */
-	public $price = '';
-	/** @var string */
-	public $discountpercentage = '';
-	/** @var string */
-	public $delfrom = '';
-	/** @var string */
-	public $deldate = '';
-	/** @var string */
-	public $delto = '';
-	/** @var string */
-	public $deladdress = '';
-	/** @var string */
-	public $contactphone = '';
-	/** @var string */
-	public $email = '';
-	/** @var string */
-	public $custref = '';
-	/** @var string */
-	public $shipvia = '';
-	/** @var string */
-	public $comments = '';
-	/** @var string the csv also carries freightcost (col 15) and ex_rate (col 25); the importer has always ignored both */
-	public $summary = '';
+	public string $customer_id = '';
+	public string $branch_no = '';
+	public string $reference = '';
+	public string $date = '';
+	public string $payment_id = '';
+	public string $sales_type_name = '';
+	public string $dimension_id = '';
+	public string $dimension2_id = '';
+	public string $item_code = '';
+	public string $item_description = '';
+	public string $quantity = '';
+	public string $unit = '';
+	public string $price = '';
+	public string $discountpercentage = '';
+	public string $delfrom = '';
+	public string $deldate = '';
+	public string $delto = '';
+	public string $deladdress = '';
+	public string $contactphone = '';
+	public string $email = '';
+	public string $custref = '';
+	public string $shipvia = '';
+	public string $comments = '';
+	// the csv also carries freightcost (col 15) and ex_rate (col 25); the importer has always ignored both
+	public string $summary = '';
 
 	/**
 	 * @param array<int, string|null> $data one CSV record

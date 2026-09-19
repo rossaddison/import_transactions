@@ -26,20 +26,17 @@ function import_post(string $key, string $default = ''): string
  */
 final class import_tax_split
 {
-    /** @var float amount without tax */
-    public $net = 0.0;
-    /** @var float amount as entered (rounded) */
-    public $inclusive = 0.0;
-    /** @var float inclusive amount minus tax */
-    public $exclusive = 0.0;
-    /** @var float */
-    public $tax = 0.0;
-    /** @var string gl account that carries the tax of this amount (sales account for credits, purchasing account for debits) */
-    public $taxaccount = '';
-    /** @var string */
-    public $salestaxaccount = '';
-    /** @var string */
-    public $purchasetaxaccount = '';
+    // amount without tax
+    public float $net = 0.0;
+    // amount as entered (rounded)
+    public float $inclusive = 0.0;
+    // inclusive amount minus tax
+    public float $exclusive = 0.0;
+    public float $tax = 0.0;
+    // gl account that carries the tax of this amount (sales account for credits, purchasing account for debits)
+    public string $taxaccount = '';
+    public string $salestaxaccount = '';
+    public string $purchasetaxaccount = '';
 }
 
 function all_delete(bool $yes = true): void
