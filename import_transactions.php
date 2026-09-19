@@ -68,14 +68,13 @@ add_access_extensions();
  */
 final class import_run
 {
-    /** @var int lines that had at least one error */
-    public $errCnt = 0;
-    /** @var int lines that were processed without error */
-    public $entryCount = 0;
-    /** @var int documents (sales orders / invoices) started */
-    public $doc_num = 0;
-    /** @var bool */
-    public $displayed_at_least_once = false;
+    // lines that had at least one error
+    public int $errCnt = 0;
+    // lines that were processed without error
+    public int $entryCount = 0;
+    // documents (sales orders / invoices) started
+    public int $doc_num = 0;
+    public bool $displayed_at_least_once = false;
 }
 
 /**

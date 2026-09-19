@@ -4,7 +4,7 @@
     "type": "project",
     "license": "GPL-3.0-or-later",
     "require": {
-        "php": ">=7.4"
+        "php": ">=8.5"
     },
     "require-dev": {
         "vimeo/psalm": "6.17.2"

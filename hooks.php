@@ -2,7 +2,7 @@
 define ('SS_IMPORTTRANSACTIONS', 101<<8);
 
 final class hooks_import_transactions extends hooks {
-	/** @var string */
+	/** @var string FrontAccounting's hooks class declares this property untyped, so it must stay untyped here */
 	public $module_name = 'import_transations';
 
 	/*
