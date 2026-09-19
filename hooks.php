@@ -21,6 +21,7 @@ final class hooks_import_transactions extends hooks {
 	}
 
 	/**
+	 * @psalm-pure
 	 * @return array{0: array<string, array{0: int, 1: string}>, 1: array<int, string>}
 	 */
 	#[\Override]

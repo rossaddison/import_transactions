@@ -7,6 +7,7 @@
  */
 
 /**
+ * @psalm-pure
  * @param array<int, string|null> $data one CSV record
  */
 function import_cell(array $data, int $index): string
