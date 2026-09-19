@@ -10,6 +10,7 @@ include_once(__DIR__ . "/../../../sales/includes/db/sales_types_db.inc");
 include_once(__DIR__ . "/../../../reporting/includes/reporting.inc");
 
 /**
+ * @psalm-mutation-free
  * @param string $key column of the cart's payment terms record, e.g. 'cash_sale'
  */
 function import_payment_terms_flag(Cart $cart, string $key): bool

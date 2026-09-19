@@ -76,6 +76,8 @@ function import_empty_table(string $table): void
  * The person type FrontAccounting stores for a csv person_type_id.
  *
  * The csv convention is 1 = supplier, 2 = customer, blank = none; FrontAccounting 2.4 uses PT_SUPPLIER, PT_CUSTOMER and PT_MISC.
+ *
+ * @psalm-pure
  */
 function fa_person_type(string $csv_type): int
 {
