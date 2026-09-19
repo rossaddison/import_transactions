@@ -26,6 +26,16 @@ class import_sales_cart
 	var $so_type = 0;		// for sales order: simple=0 template=1
 	var $cart_id;		// used to detect multi-tab edition conflits
 	var $line_items;  //array of objects of class line_details
+	var $cash_account;
+	var $account_name;
+	var $prepaid=false;
+	var $prep_amount=0;
+	var $sum_paid;
+	var $alloc;
+	var $prepayments = array();
+	var $bo_policy = null;
+	var $fixed_asset = false;
+	var $delivery_to;
 
 	var $src_docs = array();	// array of arrays(num1=>ver1,...) or 0 for no src
 	var $src_date;			// src document date (for info only)
@@ -77,7 +87,7 @@ class import_sales_cart
 	//  $trans_no!=0 && $prep_child==false => update with parent constraints for reedition
 	//  $trans_no!=0 && $prep_child==true => prepare for child doc entry
 	//
-	function import_sales_cart($type, $trans_no=0, $prep_child=false) {
+	function __construct($type, $trans_no=0, $prep_child=false) {
 		/*Constructor function initialises a new shopping cart */
 		$this->line_items = array();
 		$this->sales_type = "";
@@ -317,7 +327,41 @@ class import_sales_cart
 		return $ret;
 	}
 
-	function set_customer($customer_id, $customer_name, $currency, $discount, $payment, $cdiscount=0)
+	// FA 2.4 prepayment API, mirrored from sales/includes/cart_class.inc
+	function is_prepaid()
+	{
+		return $this->prepaid;
+	}
+
+	function is_released()
+	{
+		return floatcmp($this->sum_paid, $this->prep_amount) >= 0;
+	}
+
+	function is_started()
+	{
+		if ($this->trans_no==0)
+			return false;
+		$order_no = array_keys($this->trans_no);
+
+		return  is_sales_order_started(reset($order_no));
+	}
+
+	function update_payments()
+	{
+		$remainder = prepaid_invoice_remainder($this->order_no);
+
+		if ($this->payment_terms['days_before_due'] == -1)
+		{
+			$paid = 0;
+			foreach($this->prepayments as $payment)
+				$paid += $payment['amt'];
+			$this->prep_amount = $this->trans_no ? $paid : min($remainder, $paid);
+		} else
+			$this->prep_amount = $remainder;
+	}
+
+	function set_customer($customer_id,$customer_name, $currency, $discount, $payment, $cdiscount=0)
 	{
 		$this->customer_name = $customer_name;
 		$this->customer_id = $customer_id;
@@ -626,7 +670,7 @@ class import_sales_line_details
 	var $qty_old = 0;
 
 
-	function import_sales_line_details ($stock_id, $qty, $prc, $disc_percent,
+	function __construct($stock_id, $qty, $prc, $disc_percent,
 		$qty_done, $standard_cost, $description, $id=0, $src_no=0, $src_id=0)
 	{
 	/* Constructor function to add a new LineDetail object with passed params */

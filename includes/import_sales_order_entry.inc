@@ -8,7 +8,7 @@ include_once($path_to_root . "/sales/includes/sales_db.inc");
 include_once($path_to_root . "/sales/includes/db/sales_types_db.inc");
 include_once($path_to_root . "/reporting/includes/reporting.inc");
 
-function can_process($line, $customer_id, $branchNo, $reference, $date, $dimension_id, $dimension2_id, $freightcost=0, $delfrom, $deldate, $delto, $deladdress, $contactphone, $email, $custref, $shipvia, $comments,$exrate) {
+function can_process($line, $customer_id, $branchNo, $reference, $date, $dimension_id, $dimension2_id, $freightcost, $delfrom, $deldate, $delto, $deladdress, $contactphone, $email, $custref, $shipvia, $comments,$exrate) {
 
 	global $Refs, $SysPrefs;
 
@@ -30,7 +30,7 @@ function can_process($line, $customer_id, $branchNo, $reference, $date, $dimensi
             return false;
         }    
         
-        if (!$Refs->is_valid($reference)) {
+        if (trim((string)$reference) === "") {
 		display_error(_("On line $line you must enter a reference."));
 		return false;
 	}
@@ -124,7 +124,7 @@ function check_import_item_data($line_no, $item_code, $item_description, $quanti
 		return false;
 	}
 
-	$cost_home = get_standard_cost($item_code); // Added 2011-03-27 Joe Hunt
+	$cost_home = get_unit_cost($item_code); // was get_standard_cost() before FA 2.4 // Added 2011-03-27 Joe Hunt
 	$cost = $cost_home / get_exchange_rate_from_home_currency($_SESSION['Items']->customer_currency, $_SESSION['Items']->document_date);
         if (($price) < $cost)
 	{
@@ -146,6 +146,7 @@ function check_import_item_data($line_no, $item_code, $item_description, $quanti
 
 function copy_to_cart($customer_id, $branchNo, $sales_type_name, $reference, $date, $payment_id, $dimension_id, $dimension2_id, $freightcost, $delfrom, $deldate, $delto, $deladdress, $contactphone, $email, $custref, $shipvia, $comments,$exrate)
 {
+	$dimension_id = (int)$dimension_id; $dimension2_id = (int)$dimension2_id; // blank CSV cell -> 0 (strict MySQL rejects "")
 	        
         $cart = &$_SESSION['Items'];
         $cart->customer_id = $customer_id;
@@ -182,11 +183,11 @@ function copy_to_cart($customer_id, $branchNo, $sales_type_name, $reference, $da
 		$cart->deliver_to = $delto;
 		$cart->delivery_address = $deladdress;
 		$cart->phone = $contactphone;
-		$cart->ship_via = $shipvia;
+		$cart->ship_via = (int)$shipvia;
 	}
         
 	$cart->Location = $delfrom;
-	$cart->freight_cost = $freightcost;
+	$cart->freight_cost = (float)$freightcost;
 	if (!empty($email))
 		$cart->email =$email;
 	else

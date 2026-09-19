@@ -36,7 +36,7 @@ include_once($path_to_root . "/includes/ui/items_cart.inc"); //class 'items_cart
 include_once($path_to_root . "/includes/ui/ui_input.inc");
 include_once($path_to_root . "/includes/references.inc"); //get next reference, exists reference.
 include_once($path_to_root . "/includes/db/audit_trail_db.inc"); //add_audit_trail mandatory for all import transactions
-include_once($path_to_root . "/includes/db/references_db.inc"); //get next reference
+// FA 2.4 merged the references_db.inc functions into includes/references.inc (included above).
 include_once($path_to_root . "/gl/includes/db/gl_db_trans.inc"); // write journal entries; add_gl_tax_details; add_gl_trans
 include_once($path_to_root . "/gl/includes/db/gl_db_bank_trans.inc"); //add_bank_trans
 include_once($path_to_root . "/gl/includes/db/gl_db_bank_accounts.inc"); //get_bank_gl_account
@@ -54,9 +54,11 @@ include_once($path_to_root . "/modules/import_transactions/includes/import_sales
 
 add_access_extensions();
 
-//Turn these next two lines on for debugging
-error_reporting(E_ALL);
-ini_set("display_errors", "on");
+//Turn these next two lines on for debugging. They are off by default: FrontAccounting 2.4 only collects and
+//displays messages (notifications, errors) while error_reporting() is the level it set itself, so forcing
+//E_ALL here made every message of this page disappear.
+//error_reporting(E_ALL);
+//ini_set("display_errors", "on");
 
 //Set '$yes' to true if you are testing this module and you do not want to manually(phpmyadmin) delete previous test run records before each test run
 //Ensure that your company has no important information in it as these will be deleted by means of all_delete function under import_transactions.inc 
@@ -65,7 +67,7 @@ ini_set("display_errors", "on");
 all_delete($yes=false);
 
 $js = '';
-if ($use_popup_windows) {$js .= get_js_open_window(800, 500);}
+if ($SysPrefs->use_popup_windows) {$js .= get_js_open_window(800, 500);}
 $help_context = "Import General Journals  / Deposits / Payments / Bank Statements / Sales Orders / Sales Invoices  <a href='spreadsheet_headers.html'>Help: Formats</a>"; 
 page(_($help_context), false, false, "", $js);
 
@@ -125,7 +127,7 @@ if ((isset($_POST['type'])))
      $debitsEqualcredits = 1;
      check_db_has_stock_items(_("There are no inventory items defined in the system."));
      check_db_has_customer_branches(_("There are no customers, or there are no customers with branches. Please define customers and customer branches."));   
-     while ($data = fgetcsv($fp, 4096, $sep))
+     while ($data = fgetcsv($fp, 4096, $sep, '"', '\\'))
      {
        if (($line++ == 0) && ($skippedheader == false))
            {display_notification_centered(_("Skipped header. (line $line in import file '{$_FILES['imp']['name']}')"));$skippedheader = true;continue;}
@@ -211,7 +213,7 @@ if ((isset($_POST['type'])))
                 copy_to_cart($customer_id, $branchNo, $sales_type_name, $reference, $date, $payment_id, $dimension_id, $dimension2_id, $freightcost=0, $delfrom, $deldate, $delto, $deladdress, $contactphone, $email, $custref, $shipvia, $comments,$exrate=null);
                 
             }
-            import_add_to_order($_SESSION['Items'], $item_code, $quantity, $price, $discountpercentage, $item_description);
+            if (!import_add_to_order($_SESSION['Items'], $item_code, $quantity, $price, $discountpercentage, $item_description)) {$error = true;}
             $_SESSION['Items']->cust_ref = $reference;
             if ((!check_import_item_data($line_no=$docline, $item_code, $item_description, $quantity, $unit, $price, $discountpercentage)) ||
              (!can_process($line, $customer_id, $branchNo, $reference, $date, $dimension_id, $dimension2_id, $freightcost=0, $delfrom, $deldate, $delto, $deladdress, $contactphone, $email, $custref, $shipvia, $comments,$exrate)))
@@ -241,12 +243,11 @@ if ((isset($_POST['type'])))
          
          
          if ($reference == '' ){display_error(_("$line does not have a reference. (line $line in import file '{$_FILES['imp']['name']}')"));$error = true;}
-         if (($Refs->exists($type, $reference)) && ($reference!=$prev_ref)){
+         if (((!$Refs->is_new_reference($reference, $type))) && ($reference!=$prev_ref)){
           display_error(_("Error: Reference from table 'refs': '$reference' is already in use. (line $line in import file '{$_FILES['imp']['name']}')"));$error = true;}   
-         elseif (($Refs->exists($type, $reference)) && ($reference==$prev_ref)){//do nothing $Refs->save($type,$line,$reference);            
-         }elseif ((($Refs->exists($type, $reference))==null) && ($reference!=$prev_ref)){
+         elseif (((!$Refs->is_new_reference($reference, $type))) && ($reference==$prev_ref)){//do nothing $Refs->save($type,$line,$reference);            
+         }elseif ((((!$Refs->is_new_reference($reference, $type)))==null) && ($reference!=$prev_ref)){
            $Refs->save($type,$curEntryId,$reference);
-           save_next_reference($type, $reference);
          }      
       
          
@@ -364,7 +365,7 @@ if ((isset($_POST['type'])))
    
   }// if (!$fp)
  }// if (isset($_FILES['imp']) && $_FILES['imp']['name'] != '')
-@fclose($fp);
+if (isset($fp) && is_resource($fp)) { fclose($fp); } // $fp is unset when no file was uploaded; fclose(null) throws a TypeError in PHP 8
 
 
 }// if (isset($_POST['type'])) 

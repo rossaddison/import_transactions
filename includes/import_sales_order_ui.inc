@@ -11,7 +11,7 @@
 ***********************************************************************/
 
 include_once($path_to_root . "/modules/import_transactions/includes/import_sales_cart_class.inc");
-include_once($path_to_root . "/includes/manufacturing.inc");
+include_once($path_to_root . "/manufacturing/includes/manufacturing_db.inc"); // FA 2.4: moved from includes/manufacturing.inc
 
 //--------------------------------------------------------------------------------
 function import_add_to_order(&$order, $new_item, $new_item_qty, $price, $discount, $description='')
@@ -28,6 +28,10 @@ function import_add_to_order(&$order, $new_item, $new_item_qty, $price, $discoun
 
 	$kit = get_item_kit($new_item);
 	$item_num = db_num_rows($kit);
+	if ($item_num == 0) {
+		display_error(sprintf(_("Item code '%s' does not exist (no stock item or item kit has this code)."), $new_item));
+		return false;
+	}
         while($item = db_fetch($kit)) {
             	$std_price = get_kit_price($item['stock_id'], $order->customer_currency, 
 			$order->sales_type,	$order->price_factor, get_post('OrderDate'), true);
@@ -66,7 +70,7 @@ function import_add_to_order(&$order, $new_item, $new_item_qty, $price, $discoun
 			$new_item_qty*$item['quantity'], $item_price, $discount, 0,0, $description);
 	 }
 	}
-
+	return true;
 }
 //---------------------------------------------------------------------------------
 
