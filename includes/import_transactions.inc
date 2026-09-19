@@ -579,31 +579,16 @@ function journal_id(?string $prev_date, string $date, float $amt, float $total_d
     return array($error, $complete, $total_debit_positive, $total_credit_negative);
 }
 
-//Output the last transno for bank related transactions using table bank_trans.
-//Output the last typeno for general ledger related transactions using table gl_trans.
+// The highest transaction number already used by this type of transaction. FrontAccounting numbers every type
+// separately, so the number must be looked up per type (get_next_trans_no() also checks voided transactions).
+// Reading the last row of bank_trans or gl_trans instead picks up another type's number and collides with an existing
+// transaction as soon as payments, deposits and transfers have been entered in a different order.
 function last_transno(int $type): int
 {
-    //'get last row's typeno since type_no is the trans no'
-    if ($type == ST_BANKDEPOSIT || $type == ST_BANKPAYMENT)
+    if ($type == ST_BANKDEPOSIT || $type == ST_BANKPAYMENT || $type == ST_JOURNAL
+        || $type == ST_SALESORDER || $type == ST_SALESINVOICE)
     {
-        $sql = "SELECT id, type, trans_no, amount FROM ".TB_PREF."bank_trans ORDER BY id DESC LIMIT 1";
-        $column = 'trans_no';
+        return (int)get_next_trans_no($type) - 1;
     }
-    elseif ($type == ST_JOURNAL)
-    {
-        $sql = "SELECT counter, type, type_no, amount FROM ".TB_PREF."gl_trans ORDER BY counter DESC LIMIT 1";
-        $column = 'type_no';
-    }
-    elseif (($type == ST_SALESORDER) || ($type == ST_SALESINVOICE))
-    {
-        $sql = "SELECT trans_no,type FROM ".TB_PREF."debtor_trans ORDER BY trans_no DESC LIMIT 1";
-        $column = 'trans_no';
-    }
-    else
-    {
-        return 0;
-    }
-    $result = db_query($sql, _("Cannot locate last entry"));
-    $row = db_fetch_assoc($result);
-    return is_array($row) ? (int)$row[$column] : 0;
+    return 0;
 }
