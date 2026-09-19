@@ -1,0 +1,80 @@
+name: Psalm
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  psalm:
+    name: Psalm level 1 (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.4', '8.5']
+
+    steps:
+      # The module is analysed inside a FrontAccounting checkout: psalm.xml stubs and excludes
+      # FrontAccounting core at ../../ relative to the module, and the module includes core files by path.
+      - name: Check out FrontAccounting 2.4
+        uses: actions/checkout@v4
+        with:
+          repository: FrontAccountingERP/FA
+          ref: master
+          path: fa
+
+      - name: Check out the module
+        uses: actions/checkout@v4
+        with:
+          path: fa/modules/import_transactions
+
+      - name: Set up PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ matrix.php }}-${{ hashFiles('fa/modules/import_transactions/composer.json') }}
+          restore-keys: composer-${{ matrix.php }}-
+
+      - name: Install Psalm
+        working-directory: fa/modules/import_transactions
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Run Psalm
+        working-directory: fa/modules/import_transactions
+        run: vendor/bin/psalm --no-cache --no-progress --output-format=github
+
+  lint-php74:
+    name: Syntax check (PHP 7.4)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP 7.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          coverage: none
+
+      - name: php -l on every module file
+        run: |
+          status=0
+          for f in $(find . -path ./vendor -prune -o \( -name '*.php' -o -name '*.inc' \) -print); do
+            php -l "$f" >/dev/null || status=1
+          done
+          exit $status

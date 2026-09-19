@@ -1,0 +1,72 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# CodeRabbit configuration for rossaddison/import_transactions
+# (FrontAccounting 2.4 module: CSV import of journals, payments, deposits, bank statements and sales invoices)
+# Docs: https://docs.coderabbit.ai/guides/configure-coderabbit
+#
+# Install the GitHub App first: https://github.com/apps/coderabbitai
+
+language: "en-US"
+early_access: false
+tone_instructions: "Be direct and specific. Reference exact file paths and line numbers. Prefer short actionable comments over long explanations."
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  abort_on_close: true
+
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - "master"
+
+  path_filters:
+    - "!vendor/**"
+    - "!composer.lock"
+    - "!.psalm-cache/**"
+    - "!templates/**"
+
+  path_instructions:
+    - path: "**/*.{php,inc}"
+      instructions: |
+        This is a FrontAccounting 2.4 extension. Code must stay valid on PHP 7.4 syntax
+        (no union types, match, named arguments, constructor promotion, nullsafe operator, enums)
+        and must run on PHP 8.5. Union and generic types belong in docblocks.
+
+        Psalm: everything must pass Psalm errorLevel 1 (`vendor/bin/psalm --no-cache`).
+        Never suggest @psalm-suppress, a baseline, or a lower error level. Flag any of them as a blocker.
+        Avoid `mixed`; cast or narrow values that come from $_POST, $_FILES, CSV cells and database rows.
+
+        Security: every value taken from a CSV cell or from $_POST must go through db_escape() before it is
+        placed in SQL. Flag string concatenation into SQL as a blocker.
+
+        FrontAccounting API: functions the module calls must be declared in
+        psalm-stubs/frontaccounting.phpstub with real types. Flag a new FrontAccounting call that is not stubbed.
+
+        Behaviour that must not change without a test run of every template in templates/ (trial and real):
+        journal grouping (a journal is complete when debits equal credits), person types
+        (csv 1 = supplier, 2 = customer, blank = none, mapped by fa_person_type()), and the trial run
+        (a trial must never commit).
+
+    - path: "psalm-stubs/*.phpstub"
+      instructions: |
+        Hand-typed declarations of FrontAccounting core. Check each signature against the real function in
+        FrontAccounting 2.4; a wrong type here silently weakens Psalm for the whole module.
+
+    - path: "psalm.xml"
+      instructions: |
+        errorLevel must stay 1. FrontAccounting core directories are excluded from analysis only because
+        they are third-party code; do not exclude any file of this module.
+
+    - path: "includes/import_rows.inc"
+      instructions: |
+        The csv column order is a public contract (see spreadsheet_headers.html and templates/).
+        Flag any change to a column offset.
+
+chat:
+  auto_reply: true

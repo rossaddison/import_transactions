@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<psalm errorLevel="1" phpVersion="8.5" findUnusedBaselineEntry="false" findUnusedCode="false">
+    <fileExtensions>
+        <extension name=".php"/>
+        <extension name=".inc"/>
+    </fileExtensions>
+    <projectFiles>
+        <file name="import_transactions.php"/>
+        <file name="hooks.php"/>
+        <directory name="includes"/>
+    <ignoreFiles>
+            <directory name="../../includes"/>
+            <directory name="../../sales"/>
+            <directory name="../../gl"/>
+            <directory name="../../admin"/>
+            <directory name="../../reporting"/>
+            <directory name="../../manufacturing"/>
+            <directory name="../../inventory"/>
+            <directory name="../../taxes"/>
+            <directory name="../../purchasing"/>
+            <directory name="../../dimensions"/>
+        </ignoreFiles>
+    </projectFiles>
+    <stubs>
+        <file name="psalm-stubs/frontaccounting.phpstub"/>
+    </stubs>
+</psalm>

@@ -1,0 +1,718 @@
+<?php
+/**
+ * Hand-typed declarations of the FrontAccounting 2.4 API that the import_transactions module uses.
+ *
+ * FrontAccounting core is untyped procedural PHP; Psalm infers `mixed` for nearly everything it returns.
+ * This stub gives the used part of that API real types so the module itself can be analysed at errorLevel 1.
+ * Keep it in step with what the module calls; anything not listed here is not used by the module.
+ */
+
+// ---------------------------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------------------------
+const ST_JOURNAL = 0;
+const ST_BANKPAYMENT = 1;
+const ST_BANKDEPOSIT = 2;
+const ST_SALESINVOICE = 10;
+const ST_CUSTCREDIT = 11;
+const ST_CUSTDELIVERY = 13;
+const ST_SALESORDER = 30;
+const ST_SALESQUOTE = 32;
+const PT_MISC = 0;
+const PT_CUSTOMER = 2;
+const PT_SUPPLIER = 3;
+const PM_ANY = 0;
+const PM_CASH = 1;
+const PM_CREDIT = 2;
+const ALL_TEXT = '';
+const TABLESTYLE2 = 2;
+const TB_PREF = '0_';
+const ICON_OK = 'ok.gif';
+const ICON_CANCEL = 'cancel.png';
+const ICON_UPDATE = 'ok.gif';
+
+// ---------------------------------------------------------------------------------------------
+// Classes
+// ---------------------------------------------------------------------------------------------
+class sys_prefs extends stdClass
+{
+    /** @var int */
+    public $use_popup_windows = 1;
+
+    public function allow_negative_stock(): bool {}
+
+    public function allow_negative_prices(): bool {}
+
+    public function default_delivery_required_by(): int {}
+}
+
+class references
+{
+    /**
+     * @param string|int $ref
+     * @param int $type
+     * @param int $trans_no
+     */
+    public function is_new_reference($ref, $type, $trans_no = 0): bool {}
+
+    /**
+     * @param int $type
+     * @param int $id
+     * @param string|int $reference
+     * @return void
+     */
+    public function save($type, $id, $reference, $line = null) {}
+}
+
+class Ajax
+{
+    /** @param string $id */
+    public function activate($id): void {}
+}
+
+class application
+{
+    /** @var string */
+    public $id = '';
+
+    /**
+     * @param int $priority
+     * @param string $label
+     * @param string $link
+     * @param string $access
+     */
+    public function add_rapp_function($priority, $label, $link, $access = 'SA_OPEN'): void {}
+}
+
+class hooks
+{
+    /** @var string */
+    public $module_name = '';
+
+    /** @param application $app */
+    public function install_options($app): void {}
+
+    /** @return array{0: array<string, array{0: int, 1: string}>, 1: array<int, string>} */
+    public function install_access() {}
+}
+
+class gl_item
+{
+    /** @var string */
+    public $code_id;
+    /** @var int */
+    public $dimension_id;
+    /** @var int */
+    public $dimension2_id;
+    /** @var float */
+    public $amount;
+    /** @var string */
+    public $reference;
+    /** @var string */
+    public $description;
+
+    /**
+     * @param string $code_id
+     * @param int $dimension_id
+     * @param int $dimension2_id
+     * @param float $amount
+     * @param string $memo
+     * @param string|null $act_descr
+     * @param string|null $person_id
+     */
+    public function __construct($code_id, $dimension_id, $dimension2_id, $amount, $memo, $act_descr = null, $person_id = null) {}
+}
+
+class items_cart
+{
+    /** @var int */
+    public $trans_type;
+    /** @var array<int, gl_item> */
+    public $gl_items = array();
+    /** @var string */
+    public $tran_date = '';
+    /** @var string */
+    public $reference = '';
+    /** @var string */
+    public $memo_ = '';
+    /** @var int */
+    public $order_id = 0;
+
+    /**
+     * @param int $type
+     * @param int $trans_no
+     */
+    public function __construct($type, $trans_no = 0) {}
+
+    public function clear_items(): void {}
+
+    public function count_gl_items(): int {}
+
+    public function gl_items_total_debit(): float {}
+
+    public function gl_items_total_credit(): float {}
+}
+
+class line_details
+{
+    /** @var string */
+    public $stock_id = '';
+    /** @var string */
+    public $item_description = '';
+    /** @var float */
+    public $quantity = 0.0;
+    /** @var float */
+    public $qty_done = 0.0;
+    /** @var float */
+    public $qty_dispatched = 0.0;
+    /** @var float */
+    public $price = 0.0;
+    /** @var float */
+    public $discount_percent = 0.0;
+}
+
+class Cart
+{
+    /** @var int */
+    public $trans_type;
+    /** @var array<int, int>|int */
+    public $trans_no = 0;
+    /** @var array<int, line_details> */
+    public $line_items = array();
+    /** @var string */
+    public $document_date = '';
+    /** @var string */
+    public $due_date = '';
+    /** @var string|int */
+    public $sales_type = '';
+    /** @var string */
+    public $sales_type_name = '';
+    /** @var string */
+    public $customer_currency = '';
+    /** @var string|int */
+    public $customer_id = '';
+    /** @var string */
+    public $customer_name = '';
+    /** @var string|int */
+    public $Branch = '';
+    /** @var string */
+    public $email = '';
+    /** @var string */
+    public $deliver_to = '';
+    /** @var string */
+    public $delivery_address = '';
+    /** @var string */
+    public $phone = '';
+    /** @var string */
+    public $cust_ref = '';
+    /** @var string */
+    public $reference = '';
+    /** @var string */
+    public $Comments = '';
+    /** @var string */
+    public $Location = '';
+    /** @var string|int */
+    public $order_no = 0;
+    /** @var int */
+    public $ship_via = 0;
+    /** @var float */
+    public $freight_cost = 0.0;
+    /** @var int */
+    public $dimension_id = 0;
+    /** @var int */
+    public $dimension2_id = 0;
+    /** @var string|int */
+    public $payment = '';
+    /** @var array<string, string|int|float|null> */
+    public $payment_terms = array();
+    /** @var float|null */
+    public $price_factor = null;
+    /** @var float */
+    public $default_discount = 0.0;
+    /** @var float|string|null */
+    public $ex_rate = null;
+
+    /**
+     * @param int $type
+     * @param int|array<int, int> $trans_no
+     * @param bool|int $prepare_child
+     */
+    public function __construct($type, $trans_no = 0, $prepare_child = false) {}
+
+    /** @param int $policy */
+    public function write($policy = 0): int {}
+
+    public function clear_items(): void {}
+
+    /** @return float */
+    public function get_items_total() {}
+
+    /** @return list<string> stock ids that would go below zero */
+    public function check_qoh($date = null, $location = null): array {}
+
+    /**
+     * @param int $line_no
+     * @param string $stock_id
+     * @param float|int|string $qty
+     * @param float|int|string $price
+     * @param float|int|string $disc
+     * @param float|int|string $qty_done
+     * @param float|int|string $standard_cost
+     * @param string|null $description
+     */
+    public function add_to_cart($line_no, $stock_id, $qty, $price, $disc, $qty_done = 0, $standard_cost = 0, $description = null, $id = 0, $src_no = 0, $src_id = 0): int {}
+}
+
+// ---------------------------------------------------------------------------------------------
+// Database
+// ---------------------------------------------------------------------------------------------
+/**
+ * The module only runs SELECT statements through db_query() and reads the result; INSERT/UPDATE/DELETE results are ignored.
+ *
+ * @param string $sql
+ * @param string|null $err_msg
+ */
+function db_query($sql, $err_msg = null): mysqli_result {}
+
+/** @return array<array-key, string|int|float|null>|false */
+function db_fetch(mysqli_result $result) {}
+
+/** @return array<string, string|int|float|null>|false|null */
+function db_fetch_assoc(mysqli_result $result) {}
+
+/** @return array<int, string|int|float|null>|false|null */
+function db_fetch_row(mysqli_result $result) {}
+
+function db_num_rows(mysqli_result $result): int {}
+
+/**
+ * @param string|int|float|null $value
+ * @param bool $nullify
+ */
+function db_escape($value = '', $nullify = false): string {}
+
+function begin_transaction(): void {}
+
+function commit_transaction(): void {}
+
+// ---------------------------------------------------------------------------------------------
+// Messages and page structure
+// ---------------------------------------------------------------------------------------------
+/** @param string $msg */
+function display_error($msg): void {}
+
+/** @param string $msg */
+function display_notification($msg, $center = true): void {}
+
+/** @param string $msg */
+function display_notification_centered($msg): void {}
+
+/** @param string $msg */
+function display_warning($msg, $center = true): void {}
+
+/** @param string $msg */
+function display_heading($msg): void {}
+
+/**
+ * @param string $title
+ * @param bool $no_menu
+ * @param bool $is_index
+ * @param string $onload
+ * @param string $js
+ */
+function page($title, $no_menu = false, $is_index = false, $onload = '', $js = ''): void {}
+
+function end_page($no_menu = false, $is_index = false, $final_screen = false, $type_no = 0, $trans_no = 0): void {}
+
+function add_access_extensions(): void {}
+
+function get_js_open_window(int $width, int $height): string {}
+
+/**
+ * @param string $id
+ * @param mixed $trigger
+ * @param bool $non_ajax
+ */
+function div_start($id = '', $trigger = null, $non_ajax = false): void {}
+
+/** @param string $id */
+function div_end($id = ''): void {}
+
+/** @param bool $multi */
+function start_form($multi = false, $dummy = false, $action = '', $name = ''): void {}
+
+function end_form(int $breaks = 0): void {}
+
+/**
+ * @param int|string|false $class
+ * @param string $extra
+ */
+function start_table($class = false, $extra = '', $padding = '2', $spacing = '0'): void {}
+
+function end_table(int $breaks = 0): void {}
+
+/** @param string $param */
+function start_row($param = ''): void {}
+
+function end_row(): void {}
+
+/** @param array<int, string> $labels */
+function table_header($labels, $params = ''): void {}
+
+/** @param string $msg */
+function table_section_title($msg, int $colspan = 2): void {}
+
+/**
+ * @param int $k
+ * @param string|null $extra_class
+ */
+function alt_table_row_color(&$k, $extra_class = null): void {}
+
+/**
+ * @param string|float|int|null $label
+ * @param string $params
+ * @param string|null $id
+ */
+function label_cell($label, $params = '', $id = null): void {}
+
+/**
+ * @param string|float|int|null $label
+ * @param string|float|int|null $value
+ * @param string $params
+ * @param string $params2
+ * @param int $leftfill
+ * @param string|null $id
+ */
+function label_row($label, $value, $params = '', $params2 = '', $leftfill = 0, $id = null): void {}
+
+/**
+ * @param string|float|int|null $label
+ * @param bool|null $bold
+ * @param string|null $params
+ */
+function amount_cell($label, $bold = false, $params = '', $id = null): void {}
+
+/**
+ * @param string|null $label
+ * @param string $name
+ * @param string|int|null $value
+ * @param bool $submit_on_change
+ * @param string|bool $title
+ */
+function check_row($label, $name, $value = null, $submit_on_change = false, $title = false): void {}
+
+/**
+ * @param string|null $label
+ * @param string $name
+ * @param string|null $value
+ * @param string|int $size
+ * @param string|int $max
+ * @param string|bool $title
+ * @param string $params
+ */
+function text_cells($label, $name, $value = null, $size = '', $max = '', $title = false, $params = ''): void {}
+
+/**
+ * @param string|null $label
+ * @param string $name
+ * @param string|int|null $selected_id
+ * @param string|bool $all_option
+ * @param bool $submit_on_change
+ * @param mixed $spec_option
+ */
+function gl_all_accounts_list_cells($label, $name, $selected_id = null, $skip_bank_accounts = false, $cells = false, $all_option = false, $submit_on_change = false): void {}
+
+/**
+ * @param string|null $label
+ * @param string $name
+ * @param string|int|null $selected_id
+ */
+function bank_accounts_list_cells($label, $name, $selected_id = null, $submit_on_change = false): void {}
+
+/**
+ * @param string|null $label
+ * @param string $name
+ * @param string|int|null $selected_id
+ * @param string|bool $none_option
+ * @param bool $submit_on_change
+ */
+function tax_types_list_cells($label, $name, $selected_id = null, $none_option = false, $submit_on_change = false): void {}
+
+/**
+ * @param string|null $label
+ * @param string $name
+ * @param string|int|null $selected_id
+ * @param string|bool $all_option
+ * @param bool $submit_on_change
+ */
+function customer_list_cells($label, $name, $selected_id = null, $all_option = false, $submit_on_change = false): void {}
+
+/**
+ * @param string|null $label
+ * @param string $name
+ * @param string|int|null $selected_id
+ * @param string|bool $all_option
+ * @param bool $submit_on_change
+ */
+function supplier_list_cells($label, $name, $selected_id = null, $all_option = false, $submit_on_change = false): void {}
+
+/**
+ * @param string|null $label
+ * @param string $name
+ * @param int $category
+ * @param string|int|null $selected_id
+ * @param bool $submit_on_change
+ * @param bool $prepayments
+ */
+function sale_payment_list_cells($label, $name, $category, $selected_id = null, $submit_on_change = true, $prepayments = true): void {}
+
+/**
+ * @param string|null $label
+ * @param string $name
+ * @param string|int|null $selected_id
+ */
+function fiscalyears_list_cells($label, $name, $selected_id = null): void {}
+
+/**
+ * @param string|null $label
+ * @param string $name
+ * @param string|int|null $value
+ */
+function dateformats_list_row($label, $name, $value = null): void {}
+
+/**
+ * @param string $name
+ * @param string|int|null $selected_id
+ * @param array<int|string, string> $items
+ * @param array<string, bool|string|int> $options
+ */
+function array_selector($name, $selected_id, $items, $options = null): string {}
+
+/**
+ * @param string $label
+ * @param string $name
+ * @param string|int|null $value
+ * @param bool $submit_on_change
+ * @param string|bool $title
+ */
+function checkbox($label, $name, $value = null, $submit_on_change = false, $title = false): string {}
+
+/**
+ * @param string $name
+ * @param string $value
+ * @param bool $echo
+ * @param string|bool $title
+ * @param bool|string $async
+ * @param string|bool $icon
+ */
+function submit_center($name, $value, $echo = true, $title = false, $async = false, $icon = false): ?string {}
+
+/** @param string $name */
+function get_post($name, $dflt = ''): string {}
+
+// ---------------------------------------------------------------------------------------------
+// Company, dates, numbers
+// ---------------------------------------------------------------------------------------------
+/** @return array<string, string|int|float|null> */
+function get_company_prefs(): array {}
+
+/** @return string|int */
+function get_company_pref($prefs = null) {}
+
+function get_company_currency(): string {}
+
+/** @param string $date_ */
+function is_date($date_): bool {}
+
+/** @param string $date */
+function is_date_in_fiscalyear($date, $convert = false): bool {}
+
+/**
+ * @param string $date1
+ * @param string $date2
+ */
+function date1_greater_date2($date1, $date2): bool {}
+
+/** @param string $currency */
+function db_has_currency_rates($currency, string $date_, $msg = false): bool {}
+
+function db_has_cash_accounts(): bool {}
+
+/**
+ * @param string $currency_code
+ * @param string $date_
+ */
+function get_exchange_rate_from_home_currency($currency_code, $date_): float {}
+
+/**
+ * @param string|float|int $number
+ * @param int $decimals
+ */
+function number_format2($number, $decimals = 0): string {}
+
+/** @param string|float|int $number */
+function price_format($number): string {}
+
+function user_price_dec(): int {}
+
+function user_percent_dec(): int {}
+
+function user_date_format(): int {}
+
+// ---------------------------------------------------------------------------------------------
+// General ledger and transactions
+// ---------------------------------------------------------------------------------------------
+/**
+ * @param string $code
+ * @return string
+ */
+function get_gl_account_name($code) {}
+
+/** @param int|string $id */
+function get_bank_gl_account($id): string {}
+
+/** @param string $acc */
+function gl_account_in_bank_accounts($acc): bool {}
+
+/**
+ * @param int $trans_type
+ * @param int $trans_no
+ * @param string $trans_date
+ * @param string $descr
+ */
+function add_audit_trail($trans_type, $trans_no, $trans_date, $descr = ''): void {}
+
+/**
+ * @param int $type
+ * @param int $trans_no
+ * @param int|string $bank_act
+ * @param string|int $ref
+ * @param string $date_
+ * @param float $amount
+ * @param int $person_type_id
+ * @param string|int|null $person_id
+ * @param string $currency
+ * @param string $err_msg
+ * @param int|float $rate
+ */
+function add_bank_trans($type, $trans_no, $bank_act, $ref, $date_, $amount, $person_type_id, $person_id = '', $currency = '', $err_msg = '', $rate = 0): void {}
+
+/**
+ * @param int $type
+ * @param int $trans_id
+ * @param string $date_
+ * @param string $account
+ * @param int $dimension
+ * @param int $dimension2
+ * @param string $memo_
+ * @param float $amount
+ * @param string|null $currency
+ * @param int|null $person_type_id
+ * @param string|int|null $person_id
+ * @param string $err_msg
+ * @param int|float $rate
+ */
+function add_gl_trans($type, $trans_id, $date_, $account, $dimension, $dimension2, $memo_, $amount, $currency = null, $person_type_id = null, $person_id = null, $err_msg = '', $rate = 0): void {}
+
+/**
+ * @param string $gl_code
+ * @param int $trans_type
+ * @param int $trans_no
+ * @param float $amount
+ * @param int|float $ex_rate
+ * @param string $date
+ * @param string $memo
+ * @param int $included
+ * @param float|null $net_amount
+ */
+function add_gl_tax_details($gl_code, $trans_type, $trans_no, $amount, $ex_rate, $date, $memo, $included = 0, $net_amount = null): void {}
+
+/**
+ * @param int $trans_type
+ * @param int $trans_no
+ * @param string|int $debtor_no
+ * @param string|int $BranchNo
+ * @param string $date_
+ * @param string|int $reference
+ * @param float $amount
+ */
+function write_customer_trans($trans_type, $trans_no, $debtor_no, $BranchNo, $date_, $reference, $amount = 0, $discount = 0, $tax = 0, $freight = 0, $freight_tax = 0, $sales_type = 0, $order_no = 0, $ship_via = 0, $due_date = '', $alloc = 0, $rate = 0, $dimension_id = 0, $dimension2_id = 0, $payment_terms = null, $tax_included = 0, $prep_amount = 0): int {}
+
+/**
+ * @param int $type
+ * @param int $trans_no
+ * @param string|int $supplier_id
+ * @param string $date_
+ * @param string $due_date
+ * @param string|int $reference
+ * @param string $supp_reference
+ * @param float $amount
+ * @param float $amount_tax
+ * @param float $discount
+ */
+function write_supp_trans($type, $trans_no, $supplier_id, $date_, $due_date, $reference, $supp_reference, $amount, $amount_tax, $discount): int {}
+
+// ---------------------------------------------------------------------------------------------
+// Sales documents
+// ---------------------------------------------------------------------------------------------
+/**
+ * @param string|int $customer_id
+ * @return array<string, string|int|float|null>
+ */
+function get_customer($customer_id) {}
+
+/**
+ * @param Cart $order
+ * @param string|int $customer_id
+ * @param string|int $branch_id
+ * @return string
+ */
+function get_customer_details_to_order(&$order, $customer_id, $branch_id) {}
+
+/**
+ * @param string|int $terms
+ * @param string $invdate
+ */
+function get_invoice_duedate($terms, $invdate): string {}
+
+/**
+ * @param int|string $selected_id
+ * @return array<string, string|int|float|null>
+ */
+function get_payment_terms($selected_id) {}
+
+/** @param string $stock_id */
+function is_inventory_item($stock_id): bool {}
+
+/** @param string $stock_id */
+function get_unit_cost($stock_id): float {}
+
+/** @return mysqli_result */
+function get_item_kit(string $item_code) {}
+
+/**
+ * @param string $item_code
+ * @param string $currency
+ * @param string|int $sales_type_id
+ * @param float|null $factor
+ * @param string $date
+ * @param bool $std
+ */
+function get_kit_price($item_code, $currency, $sales_type_id, $factor = null, $date = null, $std = false): float {}
+
+/**
+ * @param float $a
+ * @param float $b
+ */
+/**
+ * @param int $id
+ * @param bool $html
+ * @param string $space
+ */
+function get_dimension_string($id, $html = false, $space = ' '): string {}
+
+/**
+ * @param float $a
+ * @param float $b
+ */
+function floatcmp($a, $b): int {}
