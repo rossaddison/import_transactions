@@ -716,3 +716,10 @@ function get_dimension_string($id, $html = false, $space = ' '): string {}
  * @param float $b
  */
 function floatcmp($a, $b): int {}
+
+/**
+ * The next free transaction number of a type, looking at the transaction table and at voided transactions.
+ *
+ * @param int $trans_type
+ */
+function get_next_trans_no($trans_type): int|float {}
